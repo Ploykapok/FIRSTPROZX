@@ -1,4 +1,4 @@
--- บริการที่ใช้
+-- ส่วนนี้ไม่เปลี่ยน
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -7,7 +7,6 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
--- UI สร้างเมนู
 local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 gui.Name = "AbilityMenu"
 gui.ResetOnSpawn = false
@@ -22,7 +21,7 @@ openMenuButton.TextSize = 18
 openMenuButton.Font = Enum.Font.SourceSansBold
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 220, 0, 360)
+frame.Size = UDim2.new(0, 300, 0, 340)
 frame.Position = UDim2.new(0, 20, 0, 100)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.Visible = false
@@ -36,11 +35,11 @@ titleBar.TextColor3 = Color3.new(1, 1, 1)
 titleBar.Font = Enum.Font.SourceSansBold
 titleBar.TextSize = 22
 
--- กล่องค่า
-local function createTextBox(parent, yPos, placeholder)
+-- ฟังก์ชันสร้าง TextBox
+local function createTextBox(parent, pos, placeholder)
 	local box = Instance.new("TextBox", parent)
-	box.Size = UDim2.new(1, -20, 0, 30)
-	box.Position = UDim2.new(0, 10, 0, yPos)
+	box.Size = UDim2.new(0, 140, 0, 30)
+	box.Position = pos
 	box.PlaceholderText = placeholder
 	box.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 	box.TextColor3 = Color3.new(1, 1, 1)
@@ -48,29 +47,44 @@ local function createTextBox(parent, yPos, placeholder)
 	return box
 end
 
-local speedBox = createTextBox(frame, 40, "Speed (default 16)")
-local jumpBox = createTextBox(frame, 80, "JumpPower (default 50)")
-local flySpeedBox = createTextBox(frame, 120, "Fly Speed (default 50)")
-
--- ปุ่ม
-local function createButton(parent, yPos, text)
+-- ฟังก์ชันสร้างปุ่ม
+local function createButton(parent, pos, text)
 	local btn = Instance.new("TextButton", parent)
-	btn.Size = UDim2.new(1, -20, 0, 30)
-	btn.Position = UDim2.new(0, 10, 0, yPos)
+	btn.Size = UDim2.new(0, 140, 0, 30)
+	btn.Position = pos
 	btn.Text = text
 	btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	btn.TextColor3 = Color3.new(1, 1, 1)
 	return btn
 end
 
-local runButton = createButton(frame, 160, "Toggle Speed")
-local jumpButton = createButton(frame, 200, "Toggle Jump")
-local noclipButton = createButton(frame, 240, "Toggle NoClip")
-local flyButton = createButton(frame, 280, "Toggle Fly(PC)")
-local espButton = createButton(frame, 320, "Toggle ESP")
+-- กล่องกรอกข้อมูล
+local speedBox = createTextBox(frame, UDim2.new(0, 10, 0, 40), "Speed (default 16)")
+local jumpBox = createTextBox(frame, UDim2.new(0, 150, 0, 40), "JumpPower (default 50)")
+local flySpeedBox = createTextBox(frame, UDim2.new(0, 10, 0, 80), "Fly Speed (default 50)")
 
--- ตัวแปร
-local isSpeedOn, isJumpOn, isNoClipOn, isFlying, isESPOn = false, false, false, false, false
+local espColorLabel = Instance.new("TextLabel", frame)
+espColorLabel.Size = UDim2.new(0, 140, 0, 20)
+espColorLabel.Position = UDim2.new(0, 150, 0, 80)
+espColorLabel.BackgroundTransparency = 1
+espColorLabel.Text = "ESP Color Hex:"
+espColorLabel.TextColor3 = Color3.new(1,1,1)
+espColorLabel.Font = Enum.Font.SourceSans
+espColorLabel.TextSize = 14
+espColorLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local espColorInput = createTextBox(frame, UDim2.new(0, 150, 0, 100), "#FF0000")
+
+-- ปุ่ม
+local runButton = createButton(frame, UDim2.new(0, 10, 0, 130), "Toggle Speed")
+local jumpButton = createButton(frame, UDim2.new(0, 150, 0, 130), "Toggle Jump")
+local noclipButton = createButton(frame, UDim2.new(0, 10, 0, 170), "Toggle NoClip")
+local flyButton = createButton(frame, UDim2.new(0, 150, 0, 170), "Toggle Fly(PC)")
+local espButton = createButton(frame, UDim2.new(0, 10, 0, 210), "Toggle ESP")
+local teleportButton = createButton(frame, UDim2.new(0, 150, 0, 210), "Click Teleport")
+
+-- สถานะ
+local isSpeedOn, isJumpOn, isNoClipOn, isFlying, isESPOn, isTeleporting = false, false, false, false, false, false
 local defaultSpeed, defaultJump, defaultFlySpeed = 16, 50, 50
 local savedSpeed, savedJump, flySpeed = defaultSpeed, defaultJump, defaultFlySpeed
 local highlights = {}
@@ -78,7 +92,7 @@ local flyDirection = Vector3.zero
 local flyConnection
 local bodyVelocity
 
--- ปุ่มเปิดเมนู
+-- Toggle Menu
 UserInputService.InputBegan:Connect(function(input, gp)
 	if input.KeyCode == Enum.KeyCode.LeftControl and not gp then
 		frame.Visible = not frame.Visible
@@ -131,11 +145,7 @@ local function updateFlyDirection()
 	if flyKeys.D then moveDir += cam.CFrame.RightVector end
 	if flyKeys.Space then moveDir += Vector3.new(0, 1, 0) end
 	if flyKeys.LeftShift then moveDir -= Vector3.new(0, 1, 0) end
-	if moveDir.Magnitude > 0 then
-		flyDirection = moveDir.Unit * flySpeed
-	else
-		flyDirection = Vector3.zero
-	end
+	flyDirection = moveDir.Magnitude > 0 and moveDir.Unit * flySpeed or Vector3.zero
 end
 
 local function startFly()
@@ -155,7 +165,6 @@ local function startFly()
 		if bodyVelocity then
 			bodyVelocity.Velocity = flyDirection
 		end
-
 		local cam = workspace.CurrentCamera
 		local look = cam.CFrame.LookVector
 		hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + Vector3.new(look.X, 0, look.Z))
@@ -165,10 +174,7 @@ end
 local function stopFly()
 	isFlying = false
 	if flyConnection then flyConnection:Disconnect() end
-	if bodyVelocity then
-		bodyVelocity:Destroy()
-		bodyVelocity = nil
-	end
+	if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
 	humanoid.WalkSpeed = defaultSpeed
 	humanoid.JumpPower = defaultJump
 end
@@ -195,22 +201,27 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- ESP
+local function hexToColor3(hex)
+	hex = hex:gsub("#","")
+	if #hex ~= 6 then return Color3.new(1,0,0) end
+	local r = tonumber(hex:sub(1,2),16)/255
+	local g = tonumber(hex:sub(3,4),16)/255
+	local b = tonumber(hex:sub(5,6),16)/255
+	return Color3.new(r,g,b)
+end
+
 local function toggleESP()
 	isESPOn = not isESPOn
 	espButton.Text = isESPOn and "ESP: ON" or "ESP: OFF"
-
-	for _, h in pairs(highlights) do
-		if h and h.Parent then h:Destroy() end
-	end
+	for _, h in pairs(highlights) do if h and h.Parent then h:Destroy() end end
 	highlights = {}
-
 	if isESPOn then
+		local color = hexToColor3(espColorInput.Text)
 		for _, plr in pairs(Players:GetPlayers()) do
 			if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
 				local highlight = Instance.new("Highlight")
-				highlight.Name = "ESP_Highlight"
 				highlight.Adornee = plr.Character
-				highlight.FillColor = Color3.fromRGB(255, 0, 0)
+				highlight.FillColor = color
 				highlight.OutlineColor = Color3.new(1, 1, 1)
 				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 				highlight.Parent = plr.Character
@@ -219,17 +230,16 @@ local function toggleESP()
 		end
 	end
 end
-
 espButton.MouseButton1Click:Connect(toggleESP)
 
 Players.PlayerAdded:Connect(function(plr)
 	plr.CharacterAdded:Connect(function(char)
 		if isESPOn then
 			task.wait(1)
+			local color = hexToColor3(espColorInput.Text)
 			local highlight = Instance.new("Highlight")
-			highlight.Name = "ESP_Highlight"
 			highlight.Adornee = char
-			highlight.FillColor = Color3.fromRGB(255, 0, 0)
+			highlight.FillColor = color
 			highlight.OutlineColor = Color3.new(1, 1, 1)
 			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 			highlight.Parent = char
@@ -238,7 +248,31 @@ Players.PlayerAdded:Connect(function(plr)
 	end)
 end)
 
--- เมื่อรีเกิด
+-- Click Teleport + เสียง
+local teleportSound = Instance.new("Sound", gui)
+teleportSound.SoundId = "rbxassetid://9118823106"
+teleportSound.Volume = 1
+
+teleportButton.MouseButton1Click:Connect(function()
+	isTeleporting = not isTeleporting
+	teleportButton.Text = isTeleporting and "Click Teleport: ON" or "Click Teleport"
+end)
+
+UserInputService.InputEnded:Connect(function(input, gp)
+	if isTeleporting and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and not gp then
+		local mouse = player:GetMouse()
+		local target = mouse.Hit
+		if target then
+			local hrp = character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				hrp.CFrame = CFrame.new(target.Position + Vector3.new(0, 5, 0))
+				teleportSound:Play()
+			end
+		end
+	end
+end)
+
+-- On Respawn
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = character:WaitForChild("Humanoid")
@@ -247,35 +281,80 @@ player.CharacterAdded:Connect(function(char)
 	if isFlying then startFly() else stopFly() end
 end)
 
--- ลากเมนู (รองรับทั้ง Mouse และ Touch)
-local dragging = false
-local dragStart, startPos
-
-local function update(input)
-	local delta = input.Position - dragStart
-	frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
-		startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-local function beginDrag(input)
-	dragging = true
-	dragStart = input.Position
-	startPos = frame.Position
-	input.Changed:Connect(function()
-		if input.UserInputState == Enum.UserInputState.End then
-			dragging = false
-		end
-	end)
-end
-
-titleBar.InputBegan:Connect(function(input)
+-- Drag Menu
+local dragging, dragStart, startPos = false, nil, nil
+local function inputBegan(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		beginDrag(input)
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
+	end
+end
+local function inputChanged(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end
+titleBar.InputBegan:Connect(inputBegan)
+UserInputService.InputChanged:Connect(inputChanged)
+
+-- Spectate
+local spectateBox = createTextBox(frame, UDim2.new(0, 10, 0, 250), "Spectate Name")
+local spectateButton = createButton(frame, UDim2.new(0, 150, 0, 250), "Spectate")
+local originalCameraSubject = workspace.CurrentCamera.CameraSubject
+local isSpectating = false
+
+local function findPlayerByPartialName(partialName)
+	partialName = partialName:lower()
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Name:lower():sub(1, #partialName) == partialName then
+			return plr
+		end
+	end
+	return nil
+end
+
+spectateButton.MouseButton1Click:Connect(function()
+	if isSpectating then
+		local currentChar = player.Character
+		if currentChar and currentChar:FindFirstChild("Humanoid") then
+			workspace.CurrentCamera.CameraSubject = currentChar:FindFirstChild("Humanoid")
+		end
+		spectateButton.Text = "Spectate"
+		isSpectating = false
+	else
+		local target = findPlayerByPartialName(spectateBox.Text)
+		if target and target.Character and target.Character:FindFirstChild("Humanoid") then
+			workspace.CurrentCamera.CameraSubject = target.Character.Humanoid
+			spectateButton.Text = "UnSpectate"
+			isSpectating = true
+		else
+			spectateButton.Text = "Not Found"
+			task.delay(1.5, function() if not isSpectating then spectateButton.Text = "Spectate" end end)
+		end
 	end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		update(input)
+-- TP to Player
+local tpToPlayerBox = createTextBox(frame, UDim2.new(0, 10, 0, 290), "Teleport to Name")
+local tpToPlayerButton = createButton(frame, UDim2.new(0, 150, 0, 290), "TP to Player")
+
+tpToPlayerButton.MouseButton1Click:Connect(function()
+	local target = findPlayerByPartialName(tpToPlayerBox.Text)
+	if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
+			teleportSound:Play()
+			tpToPlayerButton.Text = "TP Success"
+			task.delay(1.5, function() tpToPlayerButton.Text = "TP to Player" end)
+		end
+	else
+		tpToPlayerButton.Text = "Not Found"
+		task.delay(1.5, function() tpToPlayerButton.Text = "TP to Player" end)
 	end
 end)
