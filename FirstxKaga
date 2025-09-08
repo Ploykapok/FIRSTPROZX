@@ -1,0 +1,8 @@
+--ของฉันนน
+task.spawn(function()
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/Ploykapok/FIRSTPROZX/refs/heads/main/Firsthub',true))()
+end)
+--ของพีาก้า
+task.spawn(function()
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/natoloe009/SCRIPT-ROBLOX/refs/heads/main/KaGaHUB_AllGame',true))()
+end)
