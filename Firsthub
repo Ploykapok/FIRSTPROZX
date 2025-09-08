@@ -1,0 +1,195 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local plrGui = player:WaitForChild("PlayerGui")
+
+local ScreenGui = plrGui:FindFirstChild("NotifyUI") or Instance.new("ScreenGui", plrGui)
+ScreenGui.Name = "NotifyUI"
+
+local notifications = {}
+
+local function rainbowText(label)
+    spawn(function()
+        local hue = 0
+        while label.Parent do
+            hue = (hue + 4) % 360 -- เพิ่มความเร็ว
+            label.TextColor3 = Color3.fromHSV(hue/360, 1, 1)
+            wait(0.03) -- ลดเวลารอเพื่อให้ไล่สีเร็วขึ้น
+        end
+    end)
+end
+
+local function notify(itemName, duration)
+    duration = duration or 3
+
+    local frame = Instance.new("Frame", ScreenGui)
+    frame.Size = UDim2.new(0, 250, 0, 50)
+    frame.Position = UDim2.new(1, 0, 0, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(0,0,0) 
+    frame.BackgroundTransparency = 0.4 
+    frame.BorderSizePixel = 0
+    frame.ZIndex = 10
+
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1, -10, 1, -10)
+    label.Position = UDim2.new(0, 5, 0, 5)
+    label.BackgroundTransparency = 0 -- ข้อความชัด
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 18
+    label.Text = itemName
+
+    rainbowText(label) 
+
+    table.insert(notifications, frame)
+
+    for i, f in ipairs(notifications) do
+        f.Position = UDim2.new(0.7,0,0.1 + (i-1)*0.06,0)
+    end
+
+    TweenService:Create(frame, TweenInfo.new(0.5), {Position=frame.Position}):Play()
+
+    task.delay(duration, function()
+        local tweenOut = TweenService:Create(frame, TweenInfo.new(0.5), {Position=UDim2.new(1,0,frame.Position.Y.Scale,0)})
+        tweenOut:Play()
+        tweenOut.Completed:Connect(function()
+            frame:Destroy()
+            
+            for i = #notifications, 1, -1 do
+                if notifications[i] == frame then
+                    table.remove(notifications, i)
+                end
+            end
+         
+            for i, f in ipairs(notifications) do
+                TweenService:Create(f, TweenInfo.new(0.3), {Position=UDim2.new(0.7,0,0.1 + (i-1)*0.06,0)}):Play()
+            end
+        end)
+    end)
+end
+
+local existingBackpack = {}
+for _, child in pairs(player.Backpack:GetChildren()) do
+    existingBackpack[child.Name] = true
+end
+
+local existingChar = {}
+for _, child in pairs(player.Character:GetChildren()) do
+    existingChar[child.Name] = true
+end
+
+local data = player:WaitForChild("Data")
+local existingHaki = {}
+local existingWeapon = {}
+if data:FindFirstChild("Haki") then
+    for _, child in pairs(data.Haki:GetChildren()) do
+        existingHaki[child.Name] = true
+    end
+end
+if data:FindFirstChild("Weapon") then
+    for _, child in pairs(data.Weapon:GetChildren()) do
+        existingWeapon[child.Name] = true
+    end
+end
+
+notify("สคริปต์พร้อมใช้งานแล้ว", 7)
+
+player.Backpack.ChildAdded:Connect(function(child)
+    if not existingBackpack[child.Name] then
+        existingBackpack[child.Name] = true
+        notify("ได้ ["..child.Name.."] แล้ว")
+    end
+end)
+
+player.Character.ChildAdded:Connect(function(child)
+    if not existingChar[child.Name] then
+        existingChar[child.Name] = true
+        notify("ได้ ["..child.Name.."] แล้ว")
+    end
+end)
+
+if data:FindFirstChild("Haki") then
+    local hakiFolder = data.Haki
+    hakiFolder.ChildAdded:Connect(function(child)
+        if not existingHaki[child.Name] then
+            existingHaki[child.Name] = true
+            notify("ได้ [Haki - "..child.Name.."] แล้ว")
+        end
+    end)
+end
+
+if data:FindFirstChild("Weapon") then
+    local weaponFolder = data.Weapon
+    weaponFolder.ChildAdded:Connect(function(child)
+        if not existingWeapon[child.Name] then
+            existingWeapon[child.Name] = true
+            notify("ได้ [Weapon - "..child.Name.."] แล้ว")
+        end
+    end)
+end
+
+--ฮาคิสังเกตจร้าาาา
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function enableKen()
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        local kenbun = backpack:FindFirstChild("Kenbunshoku")
+        if kenbun and kenbun:FindFirstChild("Remote") and kenbun.Remote:FindFirstChild("Haki_Event") then
+            kenbun.Remote.Haki_Event:FireServer()
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        pcall(function()
+            enableKen()
+        end)
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    task.wait(2)
+    enableKen()
+end)
+
+if player.Character then
+    task.wait(2)
+    enableKen()
+end
+--ฮาคิเกราะจร้าา
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function enableHaki()
+    local data = player:FindFirstChild("Data")
+    if data and data:FindFirstChild("Haki") and data.Haki:FindFirstChild("BusoHaki") then
+
+        if data.Haki.BusoHaki.Value == true then
+            return 
+        elseif data.Haki.BusoHaki.Value == false then
+      
+            return
+        else
+        
+            local backpack = player:FindFirstChild("Backpack")
+            if backpack then
+                local buso = backpack:FindFirstChild("Busoshoku")
+                if buso and buso:FindFirstChild("Remote") and buso.Remote:FindFirstChild("Haki_Event") then
+                    buso.Remote.Haki_Event:FireServer()
+                end
+            end
+        end
+    end
+end
+
+player.CharacterAdded:Connect(function()
+    task.wait(2)
+    enableHaki()
+end)
+
+if player.Character then
+    task.wait(2)
+    enableHaki()
+end
