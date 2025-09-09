@@ -1,21 +1,20 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
 -- Load UI
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 local Window = WindUI:CreateWindow({Title="First Hub | Auto Farm", Icon="door-open", Author="Example UI", Folder="First Hub"})
 
--- =========================
 -- Tabs
--- =========================
 local Tab = Window:Tab({Title="Auto Farm", Icon="bird", Locked=false})
 local MiscTab = Window:Tab({Title="Misc", Icon="settings", Locked=false})
 local IslandTab = Window:Tab({Title="Island", Icon="map", Locked=false})
 
 -- =========================
--- Haki (Misc Tab)
+-- Haki Toggle
 -- =========================
 local function enableHaki()
     local data = player:FindFirstChild("Data")
@@ -48,6 +47,31 @@ end)
 if player.Character then
     task.wait(2)
     if getgenv().HakiAuto then enableHaki() end
+end
+
+-- =========================
+-- Water Damage Hook
+-- =========================
+getgenv().NoWaterDamage = false
+MiscTab:Toggle({
+    Title="ไม่โดนดาเมจจากน้ำ",
+    Desc="ป้องกันน้ำ",
+    Icon="droplet",
+    Type="Checkbox",
+    Default=false,
+    Callback=function(state)
+        getgenv().NoWaterDamage = state
+    end
+})
+-- Hook Remote
+local waterRemote = ReplicatedStorage:WaitForChild("Remote"):WaitForChild("RemoteEvent"):WaitForChild("Character"):WaitForChild("Character_Event")
+local oldFireServer = waterRemote.FireServer
+waterRemote.FireServer = function(remoteSelf, ...)
+    local args = {...}
+    if getgenv().NoWaterDamage and args[1] == "Water Damage" then
+        args[2] = 0
+    end
+    return oldFireServer(remoteSelf, unpack(args))
 end
 
 -- =========================
@@ -155,7 +179,7 @@ local function getMonModels(folderName)
 end
 
 -- =========================
--- Follow Smooth (หลังมอนเรียลไทม์)
+-- Follow Smooth
 -- =========================
 function followSmooth(mon)
     local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -236,16 +260,35 @@ task.spawn(function()
 end)
 
 -- =========================
--- Misc: Hook น้ำ
+-- Island Tab (Dropdown + Teleport)
 -- =========================
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local remote = ReplicatedStorage:WaitForChild("Remote"):WaitForChild("RemoteEvent"):WaitForChild("Character"):WaitForChild("Character_Event")
+local function getIslands()
+    local islands = {}
+    if workspace:FindFirstChild("Map") then
+        for _, v in ipairs(workspace.Map:GetChildren()) do
+            table.insert(islands, v.Name)
+        end
+    end
+    return islands
+end
 
-getgenv().NoWaterDamage = false
-MiscTab:Toggle({
-    Title="ไม่โดนดาเมจจากน้ำ",
-    Desc="ป้องกันน้ำแบบ Hook RemoteEvent",
-    Icon="droplet",
-    Type="Checkbox",
-    Default=false,
-    Callback=function(state)
+local IslandDropdown = IslandTab:Dropdown({
+    Title="เลือกเกาะ",
+    Values=getIslands(),
+    Multi=false,
+    AllowNone=false,
+    Callback=function(option) _G.SelectedIsland = option end
+})
+IslandTab:Button({
+    Title="วาปไปเกาะ",
+    Desc="วาปสูง 15",
+    Callback=function()
+        if _G.SelectedIsland and workspace.Map:FindFirstChild(_G.SelectedIsland) then
+            local ground = workspace.Map[_G.SelectedIsland]:FindFirstChild("Ground")
+            if ground then
+                local pos = ground.Position + Vector3.new(0,15,0)
+                player.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
+            end
+        end
+    end
+})
