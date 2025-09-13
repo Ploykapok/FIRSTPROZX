@@ -1,0 +1,77 @@
+-- Anti-AFK
+warn("Anti afk running")
+game:GetService("Players").LocalPlayer.Idled:connect(function()
+    warn("Anti afk ran")
+    game:GetService("VirtualUser"):CaptureController()
+    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+end)
+
+-- โหลด UI Library
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Marco8642/science/main/ui%20libs2"))()
+local example = library:CreateWindow({
+    text = "Drive X By First"
+})
+
+-- Path ของไฟล์ config
+local ConfigFile = "DriveX_Config.json"
+
+-- ฟังก์ชันบันทึกค่า
+local function SaveConfig()
+    local config = {
+        Speed = getfenv().speed or 500,
+        AutoDrive = getfenv().auto or false
+    }
+    writefile(ConfigFile, game:GetService("HttpService"):JSONEncode(config))
+    warn("Config Saved ✅")
+end
+
+-- ฟังก์ชันโหลดค่า
+local function LoadConfig()
+    if isfile(ConfigFile) then
+        local data = readfile(ConfigFile)
+        local cfg = game:GetService("HttpService"):JSONDecode(data)
+        getfenv().speed = cfg.Speed or 500
+        getfenv().auto = cfg.AutoDrive or false
+        warn("Config Loaded ✅")
+    else
+        getfenv().speed = 500
+        getfenv().auto = false
+        warn("Default Config Used")
+    end
+end
+
+-- โหลด config ตอนเริ่ม
+LoadConfig()
+
+-- สร้าง UI สำหรับ Speed
+local SpeedBox
+task.spawn(function()
+    SpeedBox = example:AddBox("ใส่ความเร็วรถ", function(object, focus)
+        if focus then
+            getfenv().speed = tonumber(object.Text)
+        end
+    end)
+
+    -- ตั้งค่า Text ของ SpeedBox หลัง UI สร้างเสร็จ
+    task.wait(0.5)
+    if getfenv().speed then
+        SpeedBox.Text = tostring(getfenv().speed)
+    end
+end)
+
+-- สร้าง UI สำหรับ AutoDrive
+local AutoToggle
+task.spawn(function()
+    AutoToggle = example:AddToggle("ขับอัตโนมัติ", function(state)
+        getfenv().auto = (state and true or false)
+    end)
+
+    -- ตั้งค่า Toggle หลัง UI สร้างเสร็จ
+    task.wait(0.5)
+    AutoToggle:Set(getfenv().auto)
+end)
+
+-- ปุ่ม Save Config
+example:AddButton("Save Config", function()
+    SaveConfig()
+end)
