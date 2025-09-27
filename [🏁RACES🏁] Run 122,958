@@ -1,0 +1,134 @@
+local player = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local rebirthRemote = ReplicatedStorage:WaitForChild("RebirthRequest")
+
+-- ฟังก์ชันแจ้งเตือน
+local function showNotification(title, text, duration)
+    StarterGui:SetCore("SendNotification", {
+        Title = title or "Notification",
+        Text = text or "",
+        Duration = duration or 2,
+    })
+end
+
+-- GUI หลัก
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 200)
+frame.Position = UDim2.new(0.38, 0, 0.2, 0)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BackgroundTransparency = 0.2
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+title.Text = "⚡ First Hub"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextScaled = true
+title.Parent = frame
+
+-- Warp Orb Toggle
+local warpButton = Instance.new("TextButton")
+warpButton.Size = UDim2.new(1, -20, 0, 35)
+warpButton.Position = UDim2.new(0, 10, 0, 40)
+warpButton.BackgroundColor3 = Color3.fromRGB(50, 150, 250)
+warpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+warpButton.TextScaled = true
+warpButton.Text = "Warp Orb: OFF"
+warpButton.Parent = frame
+
+local warpEnabled = false
+warpButton.MouseButton1Click:Connect(function()
+    warpEnabled = not warpEnabled
+    warpButton.Text = warpEnabled and "Warp Orb: ON" or "Warp Orb: OFF"
+    showNotification("⚡Warp Orb⚡", warpEnabled and "เปิดแล้วจร้าา" or "ปิดแล้วจร้าา", 2)
+end)
+
+-- Pull Orbs Toggle
+local pullButton = Instance.new("TextButton")
+pullButton.Size = UDim2.new(1, -20, 0, 35)
+pullButton.Position = UDim2.new(0, 10, 0, 80)
+pullButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+pullButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+pullButton.TextScaled = true
+pullButton.Text = "Pull Orbs: OFF"
+pullButton.Parent = frame
+
+local pullEnabled = false
+pullButton.MouseButton1Click:Connect(function()
+    pullEnabled = not pullEnabled
+    pullButton.Text = pullEnabled and "Pull Orbs: ON" or "Pull Orbs: OFF"
+    showNotification("🧲Pull Orbs🧲", pullEnabled and "เปิดแล้วจร้าา" or "ปิดแล้วจร้าา", 2)
+end)
+
+-- Auto Rebirth Toggle
+local rebirthButton = Instance.new("TextButton")
+rebirthButton.Size = UDim2.new(1, -20, 0, 35)
+rebirthButton.Position = UDim2.new(0, 10, 0, 120)
+rebirthButton.BackgroundColor3 = Color3.fromRGB(255, 150, 50)
+rebirthButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+rebirthButton.TextScaled = true
+rebirthButton.Text = "Auto Rebirth: OFF"
+rebirthButton.Parent = frame
+
+local rebirthEnabled = false
+rebirthButton.MouseButton1Click:Connect(function()
+    rebirthEnabled = not rebirthEnabled
+    rebirthButton.Text = rebirthEnabled and "Auto Rebirth: ON" or "Auto Rebirth: OFF"
+    showNotification("🔄Auto Rebirt🔄", rebirthEnabled and "เปิดแล้วจร้าา" or "ปิดแล้วจร้าา", 2)
+end)
+
+-- Close GUI
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(1, -20, 0, 30)
+closeButton.Position = UDim2.new(0, 10, 0, 165)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+closeButton.Text = "Close GUI"
+closeButton.Parent = frame
+
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+    showNotification("🖼️GUI🖼️", "ปิดหน้าต่างง", 2)
+end)
+
+-- ลูปออโต้
+task.spawn(function()
+    while task.wait(0.5) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+
+            -- Warp Orb
+            if warpEnabled then
+                local orb = workspace:FindFirstChild("SpeedOrb")
+                if orb and orb:IsA("BasePart") then
+                    hrp.CFrame = orb.CFrame + Vector3.new(0,3,0)
+                end
+            end
+
+            -- Pull Orbs
+            if pullEnabled then
+                for _, orb in pairs(workspace:GetChildren()) do
+                    if orb.Name == "SpeedOrb" and orb:IsA("BasePart") then
+                        orb.CFrame = hrp.CFrame
+                    end
+                end
+            end
+
+            -- Auto Rebirth
+            if rebirthEnabled then
+                pcall(function()
+                    rebirthRemote:InvokeServer()
+                end)
+            end
+        end
+    end
+end)
