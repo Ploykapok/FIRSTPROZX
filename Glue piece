@@ -1,0 +1,343 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- Load UI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Window = WindUI:CreateWindow({Title="First Hub | Auto Farm", Icon="door-open", Author="Example UI", Folder="First Hub"})
+
+-- =========================
+-- Tabs
+-- =========================
+local Tab = Window:Tab({Title="Auto Farm", Icon="bird", Locked=false})
+local MiscTab = Window:Tab({Title="Misc", Icon="settings", Locked=false})
+local IslandTab = Window:Tab({Title="Island", Icon="map", Locked=false})
+
+-- =========================
+-- Haki (Misc Tab)
+-- =========================
+local function enableHaki()
+    local data = player:FindFirstChild("Data")
+    if data and data:FindFirstChild("Haki") and data.Haki:FindFirstChild("BusoHaki") then
+        local backpack = player:FindFirstChild("Backpack")
+        local buso = backpack and backpack:FindFirstChild("Busoshoku")
+        if buso and buso:FindFirstChild("Remote") and buso.Remote:FindFirstChild("Haki_Event") then
+            buso.Remote.Haki_Event:FireServer()
+        end
+    end
+end
+
+getgenv().HakiAuto = false
+MiscTab:Toggle({
+    Title="เปิด/ปิด Haki",
+    Desc="เปิด/ปิด Buso Haki",
+    Icon="shield",
+    Type="Checkbox",
+    Default=false,
+    Callback=function(state)
+        getgenv().HakiAuto = state
+        if state then enableHaki() end
+    end
+})
+
+player.CharacterAdded:Connect(function()
+    task.wait(2)
+    if getgenv().HakiAuto then enableHaki() end
+end)
+if player.Character then
+    task.wait(2)
+    if getgenv().HakiAuto then enableHaki() end
+end
+
+-- =========================
+-- Tools
+-- =========================
+local function getTools()
+    local tools = {}
+    for _, tool in ipairs(player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then table.insert(tools, tool.Name) end
+    end
+    if #tools==0 then table.insert(tools,"ไม่มี Tool") end
+    return tools
+end
+
+local ToolDropdown = Tab:Dropdown({
+    Title="เลือก Tool",
+    Values=getTools(),
+    Multi=false,
+    AllowNone=true,
+    Callback=function(option) _G.Tool = option end
+})
+Tab:Button({
+    Title = "Refresh Tools",
+    Desc = "อัปเดตรายการ Tool และปิด Auto Hold Tool",
+    Callback = function()
+        -- รีเฟรชรายการ Tool
+        ToolDropdown:Refresh(getTools(), true)
+        
+        -- ปิด Auto Hold Tool
+        getgenv().AutoHoldTool = false
+
+        -- คืน Tool ที่ถืออยู่กลับไป Backpack
+        if _G.Tool then
+            local charTool = player.Character and player.Character:FindFirstChild(_G.Tool)
+            if charTool then
+                charTool.Parent = player.Backpack
+            end
+        end
+
+        print("รีเฟรช Tool เสร็จแล้ว และ Auto Hold Tool ถูกปิด")
+    end
+})
+-- =========================
+-- Auto Tap / Auto Click
+-- =========================
+local VirtualUser = game:GetService("VirtualUser")
+getgenv().AutoTap = false
+
+MiscTab:Toggle({
+    Title="Auto Tap",
+    Desc="กดจออัตโนมัติ",
+    Icon="fingerprint",
+    Type="Checkbox",
+    Default=false,
+    Callback=function(state)
+        getgenv().AutoTap = state
+    end
+})
+
+-- Auto Tap Loop
+task.spawn(function()
+    while true do
+        task.wait(0.1) -- ความเร็วในการกด
+        if getgenv().AutoTap then
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton1(Vector2.new())
+            end
+        end
+    end
+end)
+local function equipTool(toolName)
+    if not toolName then return end
+    local tool = player.Backpack:FindFirstChild(toolName) or player.Character:FindFirstChild(toolName)
+    if tool then tool.Parent = player.Character end
+    return tool
+end
+
+local function useTool(tool)
+    if not tool then return end
+    if tool:FindFirstChild("Remote") then
+        pcall(function() tool.Remote:FireServer() end)
+    elseif tool:IsA("Tool") then
+        pcall(function() tool:Activate() end)
+    end
+end
+
+-- =========================
+-- Monsters & Boss
+-- =========================
+local function getMonFolders()
+    local mons = {}
+    if workspace:FindFirstChild("NPCs") then
+        for _, v in ipairs(workspace.NPCs:GetChildren()) do
+            if v:IsA("Folder") and v.Name ~= "Boss" then
+                table.insert(mons, v.Name)
+            end
+        end
+    end
+    if #mons==0 then table.insert(mons,"ไม่มีมอนสเตอร์") end
+    return mons
+end
+
+local MonsterDropdown = Tab:Dropdown({
+    Title="เลือก Monster Folder",
+    Values=getMonFolders(),
+    Multi=true,
+    AllowNone=true,
+    Callback=function(options) _G.SelectedMons = options end
+})
+Tab:Button({Title="Refresh Monsters", Desc="อัปเดตรายการมอนสเตอร์", Callback=function() MonsterDropdown:Refresh(getMonFolders(),true) end})
+
+local BossList = {"Sword Master","Duck Boss","Sans","Chara","King Noob","Cutie Boss","Kyo","Shinoa","Unknown Boss","Nooby"}
+local BossDropdown = Tab:Dropdown({
+    Title="เลือก Boss",
+    Values=BossList,
+    Multi=true,
+    AllowNone=true,
+    Callback=function(options) _G.SelectedBossesToFarm = options end
+})
+
+getgenv().AutoFarmMons = false
+Tab:Toggle({
+    Title="Auto Farm Monster",
+    Desc="ฟาร์มมอนสเตอร์ตาม Folder ที่เลือก",
+    Icon="swords",
+    Type="Checkbox",
+    Default=false,
+    Callback=function(state) getgenv().AutoFarmMons = state end
+})
+
+getgenv().AutoFarmBoss = false
+Tab:Toggle({
+    Title="Auto Farm Boss",
+    Desc="ฟาร์มบอสตามชื่อที่เลือก",
+    Icon="crown",
+    Type="Checkbox",
+    Default=false,
+    Callback=function(state) getgenv().AutoFarmBoss = state end
+})
+
+local function getMonModels(folderName)
+    local folder = workspace.NPCs:FindFirstChild(folderName)
+    local models = {}
+    if folder then
+        for _, v in ipairs(folder:GetChildren()) do
+            if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
+                table.insert(models,v)
+            end
+        end
+    end
+    return models
+end
+
+local function followSmooth(mon)
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+    if not hrp or not humanoid then return end
+    humanoid.AutoRotate = false
+
+    local offset = -mon.HumanoidRootPart.CFrame.LookVector * 5
+    local targetCFrame = CFrame.new(mon.HumanoidRootPart.Position + offset, mon.HumanoidRootPart.Position - Vector3.new(0,1,0))
+
+    TweenService:Create(hrp, TweenInfo.new(0.15, Enum.EasingStyle.Linear), {CFrame=targetCFrame}):Play()
+end
+
+-- =========================
+-- Auto Farm Loop
+-- =========================
+local attackDelay = 0.35
+local CurrentTarget = nil
+
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        local tool = equipTool(_G.Tool)
+
+        -- Boss
+        if getgenv().AutoFarmBoss and _G.SelectedBossesToFarm then
+            if CurrentTarget and CurrentTarget:FindFirstChild("Humanoid") and CurrentTarget.Humanoid.Health > 0 then
+                followSmooth(CurrentTarget)
+                useTool(tool)
+                task.wait(attackDelay)
+            else
+                CurrentTarget = nil
+                for _, bossName in ipairs(_G.SelectedBossesToFarm) do
+                    local bossFolder = workspace.NPCs:FindFirstChild("Boss")
+                    if bossFolder and bossFolder:FindFirstChild(bossName) then
+                        local mon = bossFolder[bossName]
+                        if mon:FindFirstChild("Humanoid") and mon.Humanoid.Health > 0 then
+                            CurrentTarget = mon
+                            break
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Monster
+        if getgenv().AutoFarmMons and _G.SelectedMons then
+            if CurrentTarget and CurrentTarget:FindFirstChild("Humanoid") and CurrentTarget.Humanoid.Health > 0 then
+                followSmooth(CurrentTarget)
+                useTool(tool)
+                task.wait(attackDelay)
+            else
+                CurrentTarget = nil
+                for _, folderName in ipairs(_G.SelectedMons) do
+                    local models = getMonModels(folderName)
+                    for _, mon in ipairs(models) do
+                        if mon:FindFirstChild("Humanoid") and mon.Humanoid.Health > 0 then
+                            CurrentTarget = mon
+                            break
+                        end
+                    end
+                    if CurrentTarget then break end
+                end
+            end
+        end
+
+        -- คืนค่า AutoRotate
+        if not getgenv().AutoFarmMons and not getgenv().AutoFarmBoss then
+            local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.AutoRotate = true
+            end
+        end
+    end
+end)
+
+-- =========================
+-- Misc: Hook น้ำ
+-- =========================
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remote = ReplicatedStorage:WaitForChild("Remote"):WaitForChild("RemoteEvent"):WaitForChild("Character"):WaitForChild("Character_Event")
+
+getgenv().NoWaterDamage = false
+MiscTab:Toggle({
+    Title="ไม่โดนดาเมจจากน้ำ",
+    Desc="ป้องกันน้ำแบบ Hook RemoteEvent",
+    Icon="droplet",
+    Type="Checkbox",
+    Default=false,
+    Callback=function(state)
+        getgenv().NoWaterDamage = state
+    end
+})
+
+local oldFireServer
+oldFireServer = hookfunction(remote.FireServer, function(self, ...)
+    local args = {...}
+    if getgenv().NoWaterDamage and args[1] == "Water Damage" then
+        args[2] = 0
+    end
+    return oldFireServer(self, unpack(args))
+end)
+
+-- =========================
+-- Island Tab
+-- =========================
+local function getIslands()
+    local islands = {}
+    for _, v in ipairs(workspace.Map:GetChildren()) do
+        if v:IsA("Model") or v:IsA("Folder") then
+            table.insert(islands, v.Name)
+        end
+    end
+    return islands
+end
+
+local IslandDropdown = IslandTab:Dropdown({
+    Title="เลือกเกาะ",
+    Values=getIslands(),
+    Multi=false,
+    AllowNone=true,
+    Callback=function(option) _G.SelectedIsland = option end
+})
+IslandTab:Button({
+    Title="วาปไปเกาะ",
+    Desc="วาปไปตำแหน่งบนเกาะ +15",
+    Callback=function()
+        local island = workspace.Map:FindFirstChild(_G.SelectedIsland)
+        if island and island:FindFirstChild("Ground") then
+            local part = island.Ground:FindFirstChildWhichIsA("BasePart") or island.Ground:GetChildren()[1]
+            if part then
+                local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.CFrame = part.CFrame + Vector3.new(0,15,0)
+                end
+            end
+        end
+    end
+})
