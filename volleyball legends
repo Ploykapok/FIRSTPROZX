@@ -10,104 +10,103 @@ local currentSize = 12
 local hitboxToggle = false
 
 local function createHitbox(ball, size)
-if ball:FindFirstChild("Hitbox") then
-ball.Hitbox.Size = Vector3.new(size, size, size)
-return
-end
+    if ball:FindFirstChild("Hitbox") then
+        ball.Hitbox.Size = Vector3.new(size, size, size)
+        return
+    end
 
-local mainPart = ball:FindFirstChildWhichIsA("BasePart")  
-if not mainPart then return end  
+    local mainPart = ball:FindFirstChildWhichIsA("BasePart")
+    if not mainPart then return end
 
-local hitbox = Instance.new("Part")  
-hitbox.Name = "Hitbox"  
-hitbox.Shape = Enum.PartType.Ball  
-hitbox.Transparency = 0.5  
-hitbox.Material = Enum.Material.ForceField  
-hitbox.Anchored = false  
-hitbox.CanCollide = false  
-hitbox.Size = Vector3.new(size, size, size)  
-hitbox.CFrame = mainPart.CFrame  
-hitbox.Parent = ball  
+    local hitbox = Instance.new("Part")
+    hitbox.Name = "Hitbox"
+    hitbox.Shape = Enum.PartType.Ball
+    hitbox.Transparency = 0.5
+    hitbox.Material = Enum.Material.ForceField
+    hitbox.Anchored = false
+    hitbox.CanCollide = false
+    hitbox.Size = Vector3.new(size, size, size)
+    hitbox.CFrame = mainPart.CFrame
+    hitbox.Parent = ball
 
-local weld = Instance.new("WeldConstraint")  
-weld.Part0 = hitbox  
-weld.Part1 = mainPart  
-weld.Parent = hitbox  
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = hitbox
+    weld.Part1 = mainPart
+    weld.Parent = hitbox
 
--- สีสายรุ้ง  
-RunService.RenderStepped:Connect(function()  
-    if hitbox and hitbox.Parent then  
-        local hue = (tick() % 5) / 5  
-        hitbox.Color = Color3.fromHSV(hue,1,1)  
-    end  
-end)
-
+    -- สีสายรุ้ง
+    RunService.RenderStepped:Connect(function()
+        if hitbox and hitbox.Parent then
+            local hue = (tick() % 5) / 5
+            hitbox.Color = Color3.fromHSV(hue,1,1)
+        end
+    end)
 end
 
 local function removeHitbox(ball)
-if ball:FindFirstChild("Hitbox") then
-ball.Hitbox:Destroy()
-end
+    if ball:FindFirstChild("Hitbox") then
+        ball.Hitbox:Destroy()
+    end
 end
 
 -- อัพเดทลูกบอลเก่า
-for , obj in pairs(workspace:GetChildren()) do
-if obj.Name:match("CLIENT_BALL") and hitboxToggle then
-createHitbox(obj, currentSize)
-end
+for _, obj in pairs(workspace:GetChildren()) do
+    if obj.Name:match("CLIENT_BALL_") and hitboxToggle then
+        createHitbox(obj, currentSize)
+    end
 end
 
 -- ตรวจจับลูกบอลใหม่
 workspace.ChildAdded:Connect(function(obj)
-if obj.Name:match("CLIENT_BALL_") and hitboxToggle then
-task.wait(0.1)
-createHitbox(obj, currentSize)
-end
+    if obj.Name:match("CLIENT_BALL_") and hitboxToggle then
+        task.wait(0.1)
+        createHitbox(obj, currentSize)
+    end
 end)
 
 -- ========================= GUI =========================
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 local Window = WindUI:CreateWindow({
-Title = "Volleyball Legends Hub",
-Icon = "door-open",
-Author = "by First",
+    Title = "Volleyball Legends Hub",
+    Icon = "door-open",
+    Author = "by First",
 })
 
 -- ========================= Hitbox Tab =========================
 local HitboxTab = Window:Tab({Title = "Hitbox", Icon = "bird", Locked = false})
 
 HitboxTab:Slider({
-Title = "ขนาด Hitbox",
-Step = 1,
-Value = {Min = 1, Max = 40, Default = 12},
-Callback = function(value)
-currentSize = value
-for , ball in pairs(workspace:GetChildren()) do
-if ball.Name:match("CLIENT_BALL") and ball:FindFirstChild("Hitbox") then
-ball.Hitbox.Size = Vector3.new(value, value, value)
-end
-end
-end
+    Title = "ขนาด Hitbox",
+    Step = 1,
+    Value = {Min = 1, Max = 40, Default = 12},
+    Callback = function(value)
+        currentSize = value
+        for _, ball in pairs(workspace:GetChildren()) do
+            if ball.Name:match("CLIENT_BALL_") and ball:FindFirstChild("Hitbox") then
+                ball.Hitbox.Size = Vector3.new(value, value, value)
+            end
+        end
+    end
 })
 
 HitboxTab:Toggle({
-Title = "เปิด/ปิด Hitbox",
-Desc = "แสดงหรือซ่อน Hitbox ของลูกบอล",
-Icon = "bird",
-Type = "Checkbox",
-Default = false,
-Callback = function(state)
-hitboxToggle = state
-for , ball in pairs(workspace:GetChildren()) do
-if ball.Name:match("CLIENT_BALL") then
-if state then
-createHitbox(ball, currentSize)
-else
-removeHitbox(ball)
-end
-end
-end
-end
+    Title = "เปิด/ปิด Hitbox",
+    Desc = "แสดงหรือซ่อน Hitbox ของลูกบอล",
+    Icon = "bird",
+    Type = "Checkbox",
+    Default = false,
+    Callback = function(state)
+        hitboxToggle = state
+        for _, ball in pairs(workspace:GetChildren()) do
+            if ball.Name:match("CLIENT_BALL_") then
+                if state then
+                    createHitbox(ball, currentSize)
+                else
+                    removeHitbox(ball)
+                end
+            end
+        end
+    end
 })
 
 -- ========================= Player Tab =========================
@@ -116,48 +115,48 @@ local PlayerTab = Window:Tab({Title = "Player", Icon = "user", Locked = false})
 -- วิ่งเร็ว
 local speed = 16
 PlayerTab:Slider({
-Title = "ความเร็ว (WalkSpeed)",
-Step = 1,
-Value = {Min = 16, Max = 200, Default = 16},
-Callback = function(value)
-speed = value
-if player.Character and player.Character:FindFirstChild("Humanoid") then
-player.Character.Humanoid.WalkSpeed = speed
-end
-end
+    Title = "ความเร็ว (WalkSpeed)",
+    Step = 1,
+    Value = {Min = 16, Max = 200, Default = 16},
+    Callback = function(value)
+        speed = value
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = speed
+        end
+    end
 })
 
 -- กระโดดสูง
 local jump = 50
 PlayerTab:Slider({
-Title = "ความสูงกระโดด (JumpPower)",
-Step = 1,
-Value = {Min = 50, Max = 500, Default = 50},
-Callback = function(value)
-jump = value
-if player.Character and player.Character:FindFirstChild("Humanoid") then
-player.Character.Humanoid.JumpPower = jump
-end
-end
+    Title = "ความสูงกระโดด (JumpPower)",
+    Step = 1,
+    Value = {Min = 50, Max = 500, Default = 50},
+    Callback = function(value)
+        jump = value
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpPower = jump
+        end
+    end
 })
 
 -- หมุนตัวละคร
 local autoRotate = false
 PlayerTab:Toggle({
-Title = "หมุนตัวละครอัตโนมัติ",
-Desc = "สามารถหมุนตัวเองได้ขณะกระโดด",
-Icon = "refresh-ccw",
-Type = "Checkbox",
-Default = false,
-Callback = function(state)
-autoRotate = state
-end
+    Title = "หมุนตัวละครอัตโนมัติ",
+    Desc = "สามารถหมุนตัวเองได้ขณะกระโดด",
+    Icon = "refresh-ccw",
+    Type = "Checkbox",
+    Default = false,
+    Callback = function(state)
+        autoRotate = state
+    end
 })
 
 RunService.Heartbeat:Connect(function()
-if autoRotate and player.Character and player.Character:FindFirstChild("Humanoid") then
-player.Character.Humanoid.AutoRotate = true
-end
+    if autoRotate and player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.AutoRotate = true
+    end
 end)
 
 -- ขยับกลางอากาศ (PC + มือถือ)
@@ -166,67 +165,66 @@ local airControlEnabled = false
 local moveVector = Vector3.new(0,0,0)
 
 PlayerTab:Toggle({
-Title = "ขยับกลางอากาศ",
-Desc = "สามารถเดิน/วิ่งขณะกระโดดได้ (มือถือ + PC)",
-Icon = "wind",
-Type = "Checkbox",
-Default = false,
-Callback = function(state)
-airControlEnabled = state
-end
+    Title = "ขยับกลางอากาศ",
+    Desc = "สามารถเดิน/วิ่งขณะกระโดดได้ (มือถือ + PC)",
+    Icon = "wind",
+    Type = "Checkbox",
+    Default = false,
+    Callback = function(state)
+        airControlEnabled = state
+    end
 })
 
 -- ปุ่ม PC
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-if gameProcessed then return end
-if input.KeyCode == Enum.KeyCode.W then moveVector = Vector3.new(0,0,-1) end
-if input.KeyCode == Enum.KeyCode.S then moveVector = Vector3.new(0,0,1) end
-if input.KeyCode == Enum.KeyCode.A then moveVector = Vector3.new(-1,0,0) end
-if input.KeyCode == Enum.KeyCode.D then moveVector = Vector3.new(1,0,0) end
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.W then moveVector = Vector3.new(0,0,-1) end
+    if input.KeyCode == Enum.KeyCode.S then moveVector = Vector3.new(0,0,1) end
+    if input.KeyCode == Enum.KeyCode.A then moveVector = Vector3.new(-1,0,0) end
+    if input.KeyCode == Enum.KeyCode.D then moveVector = Vector3.new(1,0,0) end
 end)
 UserInputService.InputEnded:Connect(function(input, gameProcessed)
-if input.KeyCode == Enum.KeyCode.W or input.KeyCode == Enum.KeyCode.S or
-input.KeyCode == Enum.KeyCode.A or input.KeyCode == Enum.KeyCode.D then
-moveVector = Vector3.new(0,0,0)
-end
+    if input.KeyCode == Enum.KeyCode.W or input.KeyCode == Enum.KeyCode.S or
+       input.KeyCode == Enum.KeyCode.A or input.KeyCode == Enum.KeyCode.D then
+        moveVector = Vector3.new(0,0,0)
+    end
 end)
 
 -- ปุ่มมือถือ
 local function getMobileInput()
-local leftVector = Vector3.new(0,0,0)
-if player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("TouchGui") then
-local touchGui = player.PlayerGui.TouchGui
-local leftStick = touchGui:FindFirstChild("LeftStick")
-if leftStick and leftStick.Position then
-leftVector = Vector3.new(leftStick.Position.X,0,leftStick.Position.Y)
-end
-end
-return leftVector
+    local leftVector = Vector3.new(0,0,0)
+    if player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("TouchGui") then
+        local touchGui = player.PlayerGui.TouchGui
+        local leftStick = touchGui:FindFirstChild("LeftStick")
+        if leftStick and leftStick.Position then
+            leftVector = Vector3.new(leftStick.Position.X,0,leftStick.Position.Y)
+        end
+    end
+    return leftVector
 end
 
 RunService.Heartbeat:Connect(function()
-if not airControlEnabled or not player.Character then return end
-local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-local humanoid = player.Character:FindFirstChild("Humanoid")
-if not hrp or not humanoid then return end
+    if not airControlEnabled or not player.Character then return end
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    local humanoid = player.Character:FindFirstChild("Humanoid")
+    if not hrp or not humanoid then return end
 
-local inputVector = moveVector  
-inputVector = inputVector + getMobileInput()  
+    local inputVector = moveVector
+    inputVector = inputVector + getMobileInput()
 
-if not humanoid.FloorMaterial and inputVector.Magnitude > 0 then  
-    local cam = workspace.CurrentCamera  
-    local direction = (cam.CFrame:VectorToWorldSpace(inputVector)).Unit  
-    hrp.Velocity = Vector3.new(direction.X * airControlSpeed, hrp.Velocity.Y, direction.Z * airControlSpeed)  
-end
-
+    if not humanoid.FloorMaterial and inputVector.Magnitude > 0 then
+        local cam = workspace.CurrentCamera
+        local direction = (cam.CFrame:VectorToWorldSpace(inputVector)).Unit
+        hrp.Velocity = Vector3.new(direction.X * airControlSpeed, hrp.Velocity.Y, direction.Z * airControlSpeed)
+    end
 end)
 
 -- เซ็ตค่าเริ่มต้นเมื่อ Character เปลี่ยน
 player.CharacterAdded:Connect(function(char)
-task.wait(1)
-if char:FindFirstChild("Humanoid") then
-char.Humanoid.WalkSpeed = speed
-char.Humanoid.JumpPower = jump
-char.Humanoid.AutoRotate = autoRotate
-end
+    task.wait(1)
+    if char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = speed
+        char.Humanoid.JumpPower = jump
+        char.Humanoid.AutoRotate = autoRotate
+    end
 end)
