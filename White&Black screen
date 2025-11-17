@@ -1,0 +1,320 @@
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local player = game.Players.LocalPlayer
+
+-----------------------------
+-- ระบบจำค่าก่อนหน้า
+-----------------------------
+local saveFile = "KittyHub_State.txt"
+
+local function saveState(value)
+    writefile(saveFile, tostring(value))
+end
+
+local function loadState()
+    if isfile(saveFile) then
+        local content = tonumber(readfile(saveFile))
+        if content ~= nil then
+            return content
+        end
+    end
+    return 0
+end
+
+-----------------------------
+-- สร้าง GUI
+-----------------------------
+local ScreenGui = Instance.new("ScreenGui", player.PlayerGui)
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ResetOnSpawn = false
+
+local ColorScreen = Instance.new("Frame", ScreenGui)
+ColorScreen.Size = UDim2.new(1,0,1,0)
+ColorScreen.BackgroundColor3 = Color3.new(1,1,1)
+ColorScreen.ZIndex = 999999
+ColorScreen.Visible = false
+
+local ToggleFrame = Instance.new("Frame", ScreenGui)
+ToggleFrame.Size = UDim2.new(0,100,0,45)
+ToggleFrame.Position = UDim2.new(0.1,0,0.2,0)
+ToggleFrame.BackgroundColor3 = Color3.fromRGB(150,150,150)
+ToggleFrame.Active = true
+ToggleFrame.Draggable = true
+ToggleFrame.ZIndex = 1000000
+Instance.new("UICorner", ToggleFrame).CornerRadius = UDim.new(0,30)
+
+local Circle = Instance.new("Frame", ToggleFrame)
+Circle.Size = UDim2.new(0,38,0,38)
+Circle.Position = UDim2.new(0,4,0,3)
+Circle.BackgroundColor3 = Color3.new(1,1,1)
+Circle.ZIndex = 1000001
+Instance.new("UICorner", Circle).CornerRadius = UDim.new(1,0)
+
+local Label = Instance.new("TextLabel", ToggleFrame)
+Label.Size = UDim2.new(1,0,1,0)
+Label.BackgroundTransparency = 1
+Label.TextColor3 = Color3.new(0,0,0)
+Label.Text = "OFF"
+Label.Font = Enum.Font.GothamBold
+Label.TextSize = 18
+Label.ZIndex = 1000002
+
+local HubLabel = Instance.new("TextLabel", ScreenGui)
+HubLabel.Size = UDim2.new(0,400,0,60)
+HubLabel.Position = UDim2.new(0.5,-200,0.35,-80)
+HubLabel.BackgroundTransparency = 1
+HubLabel.Text = "Kitty Hub"
+HubLabel.Font = Enum.Font.GothamBold
+HubLabel.TextSize = 48
+HubLabel.TextStrokeTransparency = 0
+HubLabel.ZIndex = 1000003
+HubLabel.Visible = false
+
+local TimerLabel = Instance.new("TextLabel", ScreenGui)
+TimerLabel.Size = UDim2.new(0,400,0,50)
+TimerLabel.Position = UDim2.new(0.5,-200,0.35,-10)
+TimerLabel.BackgroundTransparency = 1
+TimerLabel.Text = "AFK 00h 00m 00s"
+TimerLabel.Font = Enum.Font.GothamBold
+TimerLabel.TextSize = 36
+TimerLabel.ZIndex = 1000002
+TimerLabel.Visible = false
+
+local AFKStatusLabel = Instance.new("TextLabel", ScreenGui)
+AFKStatusLabel.Size = UDim2.new(0,300,0,40)
+AFKStatusLabel.Position = UDim2.new(0.5,-150,0.35,50)
+AFKStatusLabel.BackgroundTransparency = 1
+AFKStatusLabel.Text = "Anti-AFK: Active"
+AFKStatusLabel.Font = Enum.Font.GothamBold
+AFKStatusLabel.TextSize = 28
+AFKStatusLabel.TextColor3 = Color3.fromRGB(50,220,50)
+AFKStatusLabel.ZIndex = 1000002
+AFKStatusLabel.Visible = false
+
+local ResetButton = Instance.new("TextButton", ScreenGui)
+ResetButton.Size = UDim2.new(0,140,0,60)
+ResetButton.Position = UDim2.new(0.5,-70,0.35,100)
+ResetButton.Text = "RESET"
+ResetButton.BackgroundColor3 = Color3.fromRGB(220,50,50)
+ResetButton.Font = Enum.Font.GothamBold
+ResetButton.TextSize = 28
+ResetButton.TextColor3 = Color3.new(1,1,1)
+ResetButton.ZIndex = 1000002
+Instance.new("UICorner", ResetButton).CornerRadius = UDim.new(0,12)
+ResetButton.Visible = false
+
+local ClickSound = Instance.new("Sound", ToggleFrame)
+ClickSound.SoundId = "rbxassetid://9118823108"
+ClickSound.Volume = 1
+
+-----------------------------
+-- ตัวแปรระบบหลัก
+-----------------------------
+local state = 0             -- ปิด = 0 / WHITE = 1 / BLACK = 2
+local dragging = false
+local startPos = nil
+
+local elapsedTime = 0
+local counting = false
+
+local lastAFK = 0
+local AFKInterval = 600     -- 10 นาที
+
+-----------------------------
+-- ฟังก์ชันอัปเดตเวลา + anti-AFK
+-----------------------------
+local function updateTimer(dt)
+    if counting then
+        elapsedTime += dt
+
+        local h = math.floor(elapsedTime/3600)
+        local m = math.floor((elapsedTime%3600)/60)
+        local s = math.floor(elapsedTime%60)
+
+        TimerLabel.Text = string.format("AFK %02dh %02dm %02ds", h, m, s)
+
+        lastAFK += dt
+        if lastAFK >= AFKInterval then
+            lastAFK = 0
+
+            -- ขยับกัน AFK
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = player.Character.HumanoidRootPart
+                hrp.CFrame *= CFrame.new(0,0,0.01)
+            end
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(updateTimer)
+
+ResetButton.MouseButton1Click:Connect(function()
+    elapsedTime = 0
+    TimerLabel.Text = "AFK 00h 00m 00s"
+end)
+
+-----------------------------
+-- ฟังก์ชันตั้งสถานะ (มีเซฟ)
+-----------------------------
+local function SetState(newState)
+    state = newState
+    saveState(state) -- 🔥 บันทึกสถานะทุกครั้ง
+    ClickSound:Play()
+
+    if state == 0 then
+        -- OFF
+        Label.Text = "OFF"
+        ColorScreen.Visible = false
+        TimerLabel.Visible = false
+        ResetButton.Visible = false
+        HubLabel.Visible = false
+        AFKStatusLabel.Visible = false
+        counting = false
+
+        TweenService:Create(ToggleFrame, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(150,150,150)}):Play()
+        TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(0,4,0,3)}):Play()
+
+    elseif state == 1 then
+        -- WHITE MODE
+        Label.Text = "WHITE"
+        ColorScreen.Visible = true
+        TimerLabel.Visible = true
+        ResetButton.Visible = true
+        HubLabel.Visible = true
+        AFKStatusLabel.Visible = true
+        counting = true
+
+        TimerLabel.TextColor3 = Color3.new(0,0,0)
+        HubLabel.TextColor3 = Color3.new(0,0,0)
+
+        TweenService:Create(ColorScreen, TweenInfo.new(0.25), {BackgroundColor3 = Color3.new(1,1,1)}):Play()
+        TweenService:Create(ToggleFrame, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60,200,90)}):Play()
+        TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(0.5,-20,0,3)}):Play()
+
+    elseif state == 2 then
+        -- BLACK MODE
+        Label.Text = "BLACK"
+        ColorScreen.Visible = true
+        TimerLabel.Visible = true
+        ResetButton.Visible = true
+        HubLabel.Visible = true
+        AFKStatusLabel.Visible = true
+        counting = true
+
+        TimerLabel.TextColor3 = Color3.new(1,1,1)
+        HubLabel.TextColor3 = Color3.new(1,1,1)
+
+        TweenService:Create(ColorScreen, TweenInfo.new(0.25), {BackgroundColor3 = Color3.new(0,0,0)}):Play()
+        TweenService:Create(ToggleFrame, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200,60,60)}):Play()
+        TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(1,-42,0,3)}):Play()
+    end
+end
+
+-----------------------------
+-- เปลี่ยนสถานะเมื่อกดปุ่ม
+-----------------------------
+local function NextState()
+    if state == 0 then
+        SetState(1)
+    elseif state == 1 then
+        SetState(2)
+    else
+        SetState(0)
+    end
+end
+
+ToggleFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+        startPos = input.Position
+    end
+end)
+
+ToggleFrame.InputChanged:Connect(function(input)
+    if startPos then
+        if (input.Position - startPos).Magnitude > 10 then
+            dragging = true
+        end
+    end
+end)
+
+ToggleFrame.InputEnded:Connect(function(input)
+    if dragging == false then
+        NextState()
+    end
+    startPos = nil
+end)
+
+-----------------------------
+-- โหลดสถานะล่าสุด
+-----------------------------
+task.wait(0.5)
+SetState(loadState()) -- 🔥 โหลดค่าสเตจที่จำไว้
+
+local FPSLabel = Instance.new("TextLabel", ScreenGui)
+FPSLabel.Size = UDim2.new(0, 120, 0, 40)
+FPSLabel.Position = UDim2.new(0.5, -60, 0, 5)
+FPSLabel.BackgroundTransparency = 1
+FPSLabel.TextScaled = true
+FPSLabel.Font = Enum.Font.GothamBold
+FPSLabel.ZIndex = 9999999
+FPSLabel.TextColor3 = Color3.fromRGB(0,255,0)
+FPSLabel.Text = "0 FPS"
+
+local fpsBuffer = {}
+local bufferSize = 30
+local lastTick = tick()
+
+RunService.RenderStepped:Connect(function(dt)
+    table.insert(fpsBuffer, 1/dt)
+    if #fpsBuffer > bufferSize then
+        table.remove(fpsBuffer, 1)
+    end
+end)
+
+-- อัปเดตทุก 1 วินาที
+task.spawn(function()
+    while true do
+        task.wait(1)
+        local sum = 0
+        for _, v in ipairs(fpsBuffer) do sum = sum + v end
+        local avgFPS = #fpsBuffer > 0 and math.floor(sum / #fpsBuffer) or 0
+        FPSLabel.Text = avgFPS .. " FPS"
+
+        -- เปลี่ยนสีตาม FPS
+        if avgFPS >= 50 then
+            FPSLabel.TextColor3 = Color3.fromRGB(0,255,0)
+        elseif avgFPS >= 30 then
+            FPSLabel.TextColor3 = Color3.fromRGB(255,255,0)
+        else
+            FPSLabel.TextColor3 = Color3.fromRGB(255,0,0)
+        end
+    end
+end)
+
+-- ปุ่ม X ติด ToggleFrame (วงกลมขอบฟ้า)
+local CloseButton = Instance.new("TextButton", ToggleFrame)
+CloseButton.Size = UDim2.new(0,30,0,30)
+CloseButton.Position = UDim2.new(1, -10, 0, -10) -- ติดขวาบน ToggleFrame
+CloseButton.Text = "×"
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 30
+CloseButton.TextColor3 = Color3.fromRGB(255,0,0) -- กากบาทสีฟ้า
+CloseButton.BackgroundTransparency = 1 -- ไม่มีพื้นหลังเต็ม
+CloseButton.ZIndex = 1000005
+
+-- สร้างกรอบวงกลม
+local CircleFrame = Instance.new("Frame", CloseButton)
+CircleFrame.Size = UDim2.new(1,0,1,0)
+CircleFrame.Position = UDim2.new(0,0,0,0)
+CircleFrame.BackgroundTransparency = 1
+CircleFrame.BorderColor3 = Color3.fromRGB(0,170,255) -- ขอบฟ้า
+CircleFrame.BorderSizePixel = 2
+CircleFrame.ZIndex = 1000004
+local UICorner = Instance.new("UICorner", CircleFrame)
+UICorner.CornerRadius = UDim.new(1,0) -- วงกลม
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
