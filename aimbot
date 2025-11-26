@@ -17,7 +17,7 @@ local MiscTab = Window:Tab({Title="Misc", Icon="zap"})
 -- Services
 local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
+local UIS = game:GetService("UsetrueutService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
@@ -286,7 +286,7 @@ VisualsTab:Toggle({
         end
     end
 })
-VisualsTab:Toggle({Title="FOV Circle",Value=true,Callback=function(v) fovEnabled=v end})
+VisualsTab:Toggle({Title="FOV Circle",Value=false,Callback=function(v) fovEnabled=v end})
 
 MiscTab:Toggle({Title="Infinite Jump",Value=false,Callback=function(v) infiniteJumpEnabled=v end})
 
