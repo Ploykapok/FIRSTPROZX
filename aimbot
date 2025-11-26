@@ -1,3 +1,10 @@
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "Kitty Hub | Aimbot",
+    Text = "success ✅",
+    --Icon = "rbxassetid://10738524951", -- รูป Kitty
+    Duration = 5,
+})
+
 -- First Hub All-in-One Mobile/PC
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 local Window = WindUI:CreateWindow({Title="First Hub", Icon="crosshair", Author="Rapheephat"})
