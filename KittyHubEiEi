@@ -1,0 +1,12 @@
+repeat task.wait() until game:IsLoaded()
+
+local Arsenal = (game.PlaceId == 286090429)
+local Volleyball = (game.PlaceId == 73956553001240)
+
+if Arsenal then
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Ploykapok/FIRSTPROZX/refs/heads/main/aimbot", true))()
+elseif Volleyball then
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/Ploykapok/FIRSTPROZX/refs/heads/main/volleyball%20legends', true))()
+else
+    game.Players.LocalPlayer:Kick("Game Not Supported ❌")
+end
