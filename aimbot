@@ -7,7 +7,7 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 
 -- First Hub All-in-One Mobile/PC
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-local Window = WindUI:CreateWindow({Title="First Hub", Icon="crosshair", Author="Rapheephat"})
+local Window = WindUI:CreateWindow({Title="Kitty Hub", Icon="kitty", Author="by First"})
 
 -- Tabs
 local CombatTab = Window:Tab({Title="Combat", Icon="target"})
