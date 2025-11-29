@@ -1,11 +1,17 @@
-game:GetService("StarterGui"):SetCore("SendNotitruetion", {
-    Title = "Kitty Hub | Aimbot",
-    Text = "success ✅",
-    --Icon = "rbxassetid://Callbackback8524951", -- รูป Kitty
-    Duration = 5,
-})
+-- =======================
+-- ✅ Notification แก้สะกดถูกแล้ว
+-- =======================
+pcall(function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Kitty Hub | Aimbot",
+        Text = "success ✅",
+        Duration = 5,
+    })
+end)
 
--- First Hub All-in-One Mobile/PC
+-- =======================
+-- Load WindUI
+-- =======================
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 local Window = WindUI:CreateWindow({Title="Kitty Hub", Icon="kitty", Author="by First"})
 
@@ -14,7 +20,9 @@ local CombatTab = Window:Tab({Title="Combat", Icon="target"})
 local VisualsTab = Window:Tab({Title="Visuals", Icon="eye"})
 local MiscTab = Window:Tab({Title="Misc", Icon="zap"})
 
+-- =======================
 -- Services
+-- =======================
 local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -26,9 +34,251 @@ local LocalPlayer = Players.LocalPlayer
 -- =======================
 local aimlockEnabled, aimbotEnabled, smoothAim = false, false, false
 local aimPart, wallCheck, smoothness = "Head", true, 0.4
+local teamCheckEnabled = false
+
 local targetPlayer = nil
 
+local autoShootEnabled = false
+local autoShootDelay = 0.05
+
+local espEnabled = false
+local ESPObjects = {}
+
 local fovEnabled, fovSize = false, 120
+local fovXOffset, fovYOffset = 0, -30
+
+local infiniteJumpEnabled = false
+
+-- =======================
+-- FOV Circle
+-- =======================
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+
+local FOVFrame = Instance.new("Frame")
+FOVFrame.Parent = ScreenGui
+FOVFrame.AnchorPoint = Vector2.new(0.5,0.5)
+FOVFrame.Position = UDim2.new(0.5, fovXOffset, 0.5, fovYOffset)
+FOVFrame.Size = UDim2.new(0,fovSize*2,0,fovSize*2)
+FOVFrame.BackgroundTransparency = 1
+
+local Stroke = Instance.new("UIStroke", FOVFrame)
+Stroke.Thickness = 2
+Stroke.Color = Color3.new(1,1,1)
+
+Instance.new("UICorner", FOVFrame).CornerRadius = UDim.new(1,0)
+
+local function updateFOVCircle()
+    FOVFrame.Size = UDim2.new(0,fovSize*2,0,fovSize*2)
+    FOVFrame.Position = UDim2.new(0.5, fovXOffset, 0.5, fovYOffset)
+    FOVFrame.Visible = fovEnabled and (aimlockEnabled or aimbotEnabled)
+end
+
+-- =======================
+-- Team Check
+-- =======================
+local function isEnemy(plr)
+    if not teamCheckEnabled then return true end
+    if not plr.Team or not LocalPlayer.Team then return true end
+    return plr.Team ~= LocalPlayer.Team
+end
+
+-- =======================
+-- Closest Player
+-- =======================
+local function getClosestInFOV()
+    local closest, shortest = nil, math.huge
+    local center = Vector2.new(
+        Camera.ViewportSize.X/2 + fovXOffset,
+        Camera.ViewportSize.Y/2 + fovYOffset
+    )
+
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and isEnemy(plr) and plr.Character then
+            local part = plr.Character:FindFirstChild(aimPart)
+            if part then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local dist = (Vector2.new(screenPos.X,screenPos.Y) - center).Magnitude
+                    if dist <= fovSize then
+                        if wallCheck then
+                            local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 300)
+                            local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character})
+                            if hit and hit:IsDescendantOf(plr.Character) and dist < shortest then
+                                closest, shortest = plr, dist
+                            end
+                        else
+                            if dist < shortest then closest, shortest = plr, dist end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- =======================
+-- ESP
+-- =======================
+local function createESP(plr)
+    if ESPObjects[plr] then return end
+
+    ESPObjects[plr] = {
+        Box = Drawing.new("Square"),
+        Health = Drawing.new("Line"),
+        Name = Drawing.new("Text"),
+        Distance = Drawing.new("Text")
+    }
+
+    local box = ESPObjects[plr].Box
+    box.Thickness = 2; box.Filled = false; box.Color = Color3.fromRGB(255,0,0); box.Visible=false
+
+    ESPObjects[plr].Health.Thickness = 2; ESPObjects[plr].Health.Color = Color3.new(0,1,0)
+
+    ESPObjects[plr].Name.Size = 16; ESPObjects[plr].Name.Center = true; ESPObjects[plr].Name.Outline = true
+    ESPObjects[plr].Distance.Size = 14; ESPObjects[plr].Distance.Center = true; ESPObjects[plr].Distance.Outline = true
+end
+
+local function removeESP(plr)
+    if not ESPObjects[plr] then return end
+    for _,v in pairs(ESPObjects[plr]) do v:Remove() end
+    ESPObjects[plr] = nil
+end
+
+-- =======================
+-- RenderStepped (รวมเป็นอันเดียว)
+-- =======================
+RS.RenderStepped:Connect(function()
+
+    -- FOV Circle
+    updateFOVCircle()
+
+    -- Aimlock / Aimbot
+    if aimlockEnabled or aimbotEnabled then
+        local target = getClosestInFOV()
+        if target and target.Character then
+            local part = target.Character:FindFirstChild(aimPart)
+            if part then
+                local camPos = Camera.CFrame.Position
+                local dir = (part.Position - camPos).Unit
+                Camera.CFrame = smoothAim
+                    and Camera.CFrame:Lerp(CFrame.new(camPos, camPos+dir), smoothness)
+                    or CFrame.new(camPos, camPos+dir)
+
+                targetPlayer = target
+            end
+        else
+            targetPlayer = nil
+        end
+    end
+
+    -- AutoShoot
+    if autoShootEnabled and targetPlayer and targetPlayer.Character then
+        local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            workspace.FREE43627.Beam.Remotes.CheckShot:FireServer(hrp.Position)
+            task.wait(autoShootDelay)
+            workspace.FREE43627.Beam.Remotes.S:FireServer(hrp.Position)
+        end
+    end
+
+    -- ESP
+    if espEnabled then
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and isEnemy(plr) and plr.Character then
+                createESP(plr)
+                local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+                local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+
+                if hrp and hum and hum.Health > 0 then
+                    local screenPos,onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                    local box = ESPObjects[plr].Box
+                    local health = ESPObjects[plr].Health
+                    local nameText = ESPObjects[plr].Name
+                    local distText = ESPObjects[plr].Distance
+
+                    if onScreen then
+                        local size = 50
+                        box.Size = Vector2.new(size,size)
+                        box.Position = Vector2.new(screenPos.X-size/2, screenPos.Y-size/2)
+                        box.Visible = true
+
+                        local hpRatio = hum.Health / hum.MaxHealth
+                        health.From = Vector2.new(box.Position.X-5, box.Position.Y+size)
+                        health.To = Vector2.new(box.Position.X-5, box.Position.Y+size-(size*hpRatio))
+                        health.Visible = true
+
+                        nameText.Text = plr.Name
+                        nameText.Position = Vector2.new(screenPos.X, screenPos.Y - size/2 - 10)
+                        nameText.Visible = true
+
+                        local dist = math.floor((hrp.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude)
+                        distText.Text = dist.."m"
+                        distText.Position = Vector2.new(screenPos.X, screenPos.Y + size/2 + 5)
+                        distText.Visible = true
+
+                    else
+                        box.Visible=false
+                        health.Visible=false
+                        nameText.Visible=false
+                        distText.Visible=false
+                    end
+                else
+                    removeESP(plr)
+                end
+            end
+        end
+    end
+end)
+
+-- =======================
+-- Infinite Jump
+-- =======================
+UIS.JumpRequest:Connect(function()
+    if infiniteJumpEnabled then
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end)
+
+-- =======================
+-- UI Controls
+-- =======================
+CombatTab:Toggle({Title="Aimlock",Value=false,Callback=function(v) aimlockEnabled=v end})
+CombatTab:Toggle({Title="Aimbot",Value=false,Callback=function(v) aimbotEnabled=v end})
+CombatTab:Toggle({Title="Smooth Aim",Value=false,Callback=function(v) smoothAim=v end})
+CombatTab:Toggle({Title="WallCheck",Value=true,Callback=function(v) wallCheck=v end})
+
+CombatTab:Dropdown({Title="Aim Part",Values={"Head","HumanoidRootPart"},Value="Head",Callback=function(v) aimPart=v end})
+
+CombatTab:Slider({Title="Smoothness",Value={Min=0.1,Max=1,Default=0.4},Step=0.1,Callback=function(v) smoothness=v end})
+
+CombatTab:Toggle({Title="Team Check",Value=false,Callback=function(v) teamCheckEnabled=v end})
+
+CombatTab:Toggle({Title="Auto Shoot",Value=false,Callback=function(v) autoShootEnabled=v end})
+CombatTab:Slider({Title="Auto Shoot Delay",Value={Min=0.01,Max=0.2,Default=0.05},Step=0.01,Callback=function(v) autoShootDelay=v end})
+
+VisualsTab:Toggle({Title="ESP",Value=false,Callback=function(v)
+    espEnabled=v
+    if not v then
+        for _,objs in pairs(ESPObjects) do
+            for _,d in pairs(objs) do d:Remove() end
+        end
+        ESPObjects={}
+    end
+end})
+
+VisualsTab:Toggle({Title="FOV Circle",Value=false,Callback=function(v) fovEnabled=v end})
+
+MiscTab:Toggle({Title="Infinite Jump",Value=false,Callback=function(v) infiniteJumpEnabled=v end})
+
+MiscTab:Button({
+    Title = "Open Fly GUI V3",
+    Desc = "เปิด Fly GUI V3",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
+    end
+})local fovEnabled, fovSize = false, 120
 local fovXOffset, fovYOffset = 0, -30
 local teamCheckEnabled = false
 
