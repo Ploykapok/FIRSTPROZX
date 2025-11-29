@@ -17,7 +17,7 @@ local MiscTab = Window:Tab({Title="Misc", Icon="zap"})
 -- Services
 local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
-local UIS = game:GetService("UsetrueutService")
+local UIS = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
