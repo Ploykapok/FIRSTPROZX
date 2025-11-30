@@ -242,42 +242,8 @@ UIS.JumpRequest:Connect(function()
 end)
 
 -- =======================
--- UI Controls
--- =======================
-CombatTab:Toggle({Title="Aimlock",Value=false,Callback=function(v) aimlockEnabled=v end})
-CombatTab:Toggle({Title="Aimbot",Value=false,Callback=function(v) aimbotEnabled=v end})
-CombatTab:Toggle({Title="Smooth Aim",Value=false,Callback=function(v) smoothAim=v end})
-CombatTab:Toggle({Title="WallCheck",Value=true,Callback=function(v) wallCheck=v end})
 
-CombatTab:Dropdown({Title="Aim Part",Values={"Head","HumanoidRootPart"},Value="Head",Callback=function(v) aimPart=v end})
 
-CombatTab:Slider({Title="Smoothness",Value={Min=0.1,Max=1,Default=0.4},Step=0.1,Callback=function(v) smoothness=v end})
-
-CombatTab:Toggle({Title="Team Check",Value=false,Callback=function(v) teamCheckEnabled=v end})
-
-CombatTab:Toggle({Title="Auto Shoot",Value=false,Callback=function(v) autoShootEnabled=v end})
-CombatTab:Slider({Title="Auto Shoot Delay",Value={Min=0.01,Max=0.2,Default=0.05},Step=0.01,Callback=function(v) autoShootDelay=v end})
-
-VisualsTab:Toggle({Title="ESP",Value=false,Callback=function(v)
-    espEnabled=v
-    if not v then
-        for _,objs in pairs(ESPObjects) do
-            for _,d in pairs(objs) do d:Remove() end
-        end
-        ESPObjects={}
-    end
-end})
-
-VisualsTab:Toggle({Title="FOV Circle",Value=false,Callback=function(v) fovEnabled=v end})
-
-MiscTab:Toggle({Title="Infinite Jump",Value=false,Callback=function(v) infiniteJumpEnabled=v end})
-
-MiscTab:Button({
-    Title = "Open Fly GUI V3",
-    Desc = "เปิด Fly GUI V3",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
-    end
 })local fovEnabled, fovSize = false, 120
 local fovXOffset, fovYOffset = 0, -30
 local teamCheckEnabled = false
