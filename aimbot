@@ -515,4 +515,3 @@ end
 })
 
 VisualsTab:Toggle({Title="FOV Circle",Value=false,Callback=function(v) fovEnabled=v end})
-เหมือนเดิมเลย
