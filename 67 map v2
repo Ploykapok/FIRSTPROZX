@@ -1,0 +1,177 @@
+-- ===============================
+-- Services
+-- ===============================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- ===============================
+-- Variables
+-- ===============================
+local targetPosition = Vector3.new(-1884.9453125, 35.46026611328125, 287.7532043457031)
+local autoEnabled = false
+local uiVisible = true
+local draggingToggle = false
+
+-- ===============================
+-- ScreenGui
+-- ===============================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- ===============================
+-- Main Frame (ลากได้)
+-- ===============================
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0,240,0,140)
+MainFrame.Position = UDim2.new(0.5,-120,0.5,-70)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0,12)
+MainCorner.Parent = MainFrame
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1,0,0,30)
+Title.Position = UDim2.new(0,0,0,0)
+Title.BackgroundTransparency = 1
+Title.Text = "First Hub"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.TextColor3 = Color3.fromRGB(200,200,255)
+Title.Parent = MainFrame
+
+-- Toggle Auto Walk + Jump Button
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0.9,0,0,50)
+ToggleButton.Position = UDim2.new(0.05,0,0.35,0)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(60,60,80)
+ToggleButton.TextColor3 = Color3.fromRGB(220,220,255)
+ToggleButton.Text = "Auto Walk + Jump: OFF"
+ToggleButton.Font = Enum.Font.Gotham
+ToggleButton.TextSize = 16
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Parent = MainFrame
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0,10)
+ToggleCorner.Parent = ToggleButton
+
+ToggleButton.MouseEnter:Connect(function()
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(100,100,150)
+end)
+ToggleButton.MouseLeave:Connect(function()
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(60,60,80)
+end)
+
+-- ===============================
+-- UI Toggle Button Frame (ลากได้)
+-- ===============================
+local ToggleFrame = Instance.new("Frame")
+ToggleFrame.Size = UDim2.new(0,60,0,40)
+ToggleFrame.Position = UDim2.new(0,10,0,10)
+ToggleFrame.BackgroundColor3 = Color3.fromRGB(60,60,80)
+ToggleFrame.BorderSizePixel = 0
+ToggleFrame.Active = true
+ToggleFrame.Parent = ScreenGui
+
+local ToggleCorner2 = Instance.new("UICorner")
+ToggleCorner2.CornerRadius = UDim.new(0,6)
+ToggleCorner2.Parent = ToggleFrame
+
+-- TextButton สำหรับกด
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(1,0,1,0)
+ToggleBtn.BackgroundTransparency = 1
+ToggleBtn.Text = "UI"
+ToggleBtn.TextColor3 = Color3.fromRGB(220,220,255)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 18
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Parent = ToggleFrame
+
+-- ===============================
+-- Drag Logic สำหรับ UI Toggle
+-- ===============================
+local dragInput, startPos, startMousePos
+
+ToggleFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingToggle = true
+        startMousePos = input.Position
+        startPos = ToggleFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingToggle = false
+            end
+        end)
+    end
+end)
+
+ToggleFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingToggle and input == dragInput then
+        local delta = input.Position - startMousePos
+        ToggleFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- ===============================
+-- Click Event สำหรับเปิด/ปิด UI
+-- ===============================
+ToggleBtn.MouseButton1Click:Connect(function()
+    if not draggingToggle then
+        uiVisible = not uiVisible
+        MainFrame.Visible = uiVisible
+    end
+end)
+
+-- ===============================
+-- Walk Loop Function
+-- ===============================
+local function walkLoop()
+    while autoEnabled do
+        if humanoid and rootPart then
+            humanoid:MoveTo(targetPosition)
+            humanoid.MoveToFinished:Wait()
+        end
+    end
+end
+
+-- Toggle Auto Walk + Jump
+ToggleButton.MouseButton1Click:Connect(function()
+    autoEnabled = not autoEnabled
+    ToggleButton.Text = "Auto Walk + Jump: " .. (autoEnabled and "ON" or "OFF")
+    if autoEnabled then
+        spawn(walkLoop)
+    end
+end)
+
+-- Loop Jump nonstop
+RunService.RenderStepped:Connect(function()
+    if autoEnabled and humanoid then
+        humanoid.Jump = true
+    end
+end)
