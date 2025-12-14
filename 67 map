@@ -3,9 +3,11 @@
 -- ===============================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HRP = Character:WaitForChild("HumanoidRootPart")
+
 local CashShopRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CashShop")
 local RebirthRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("rebirthReq")
 
@@ -13,176 +15,131 @@ local RebirthRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("re
 -- Variables
 -- ===============================
 local AutoFarm = false
-local AutoUpgradeEnabled = false
-local SelectedUpgrades = {} -- จาก Dropdown
-getgenv().Script_Mode = "money" -- money / rebirth
+local AutoUpgrade = false
+local AutoRebirth = false
+local SelectedUpgrades = {}
 
 -- ===============================
--- Warp function (ฟาร์มทุก Node)
--- ===============================
-local function AutoFarmWarp()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-
-    local worlds = workspace:FindFirstChild("Worlds")
-    if not worlds then return end
-
-    local nodeList = {}
-
-    -- รวม Node ทุกโลกที่มี
-    if worlds:FindFirstChild("Starter") then
-        table.insert(nodeList, worlds.Starter.Nodes:FindFirstChild("Win"))
-    end
-    if worlds:FindFirstChild("Fire") then
-        table.insert(nodeList, worlds.Fire.Nodes:FindFirstChild("Win"))
-    end
-    if worlds:FindFirstChild("Toxic") then
-        table.insert(nodeList, worlds.Toxic.Nodes:FindFirstChild("Win"))
-    end
-
-    -- วาร์ปทุก Node ต่อรอบ
-    for _, node in ipairs(nodeList) do
-        if node then
-            hrp.CFrame = node.CFrame
-            task.wait(0.5) -- เว้นระยะเล็กน้อยให้ฟาร์มได้
-        end
-    end
-end
-
--- ===============================
--- Auto Upgrade
--- ===============================
-local function AutoUpgrade()
-    if not AutoUpgradeEnabled then return end
-    if #SelectedUpgrades == 0 then return end
-
-    local stats = LocalPlayer:FindFirstChild("leaderstats")
-    if not stats then return end
-    local cash = stats:FindFirstChild("Cash")
-    if not cash or cash.Value <= 0 then return end
-
-    for _, upgrade in ipairs(SelectedUpgrades) do
-        CashShopRemote:InvokeServer("Upgrade", upgrade)
-    end
-
-    task.wait(0.2)
-end
-
--- ===============================
--- Auto Loop
+-- Auto Farm (Touch ทุกโลก)
 -- ===============================
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait() do
         if not AutoFarm then continue end
         pcall(function()
-            AutoFarmWarp()
+            local worlds = workspace:FindFirstChild("Worlds")
+            if not worlds then return end
 
-            if getgenv().Script_Mode == "money" then
-                AutoUpgrade()
-            elseif getgenv().Script_Mode == "rebirth" then
-                RebirthRemote:FireServer()
+            for _, world in ipairs(worlds:GetChildren()) do
+                local node = world:FindFirstChild("Nodes")
+                if node and node:FindFirstChild("Win") then
+                    local win = node.Win
+                    local ti = win:FindFirstChildWhichIsA("TouchTransmitter")
+                        or win:FindFirstChild("TouchInterest")
+
+                    if ti then
+                        firetouchinterest(HRP, win, 0)
+                        firetouchinterest(HRP, win, 1)
+                        task.wait()
+                    end
+                end
             end
         end)
     end
 end)
 
 -- ===============================
--- ปิด Shop GUI ระหว่าง Auto Upgrade
+-- Auto Upgrade (ไม่เช็คอะไร)
 -- ===============================
 task.spawn(function()
-    while task.wait(0.5) do
-        if AutoUpgradeEnabled then
+    while task.wait(0.3) do
+        if not AutoUpgrade then continue end
+        for _, up in ipairs(SelectedUpgrades) do
             pcall(function()
-                local shop = LocalPlayer.PlayerGui:FindFirstChild("Gui") and LocalPlayer.PlayerGui.Gui:FindFirstChild("Shop")
-                if shop and shop.Visible then
-                    shop.Visible = false
-                end
+                CashShopRemote:InvokeServer("Upgrade", up)
             end)
         end
     end
 end)
 
 -- ===============================
+-- Auto Rebirth
+-- ===============================
+task.spawn(function()
+    while task.wait(5) do
+        if not AutoRebirth then continue end
+        pcall(function()
+            RebirthRemote:FireServer()
+        end)
+    end
+end)
+
+-- ===============================
 -- WindUI
 -- ===============================
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local WindUI = loadstring(game:HttpGet(
+    "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+))()
+
 local Window = WindUI:CreateWindow({
-    Title = "Kitty hub",
+    Title = "Kitty Hub",
     Icon = "door-open",
     Author = "by First",
 })
 
--- ===============================
--- Tab Auto Farm
--- ===============================
-local FarmTab = Window:Tab({
+local Tab = Window:Tab({
     Title = "Auto Farm",
     Icon = "bird",
     Locked = false,
 })
 
--- 1️⃣ Dropdown เลือกโหมด
-FarmTab:Dropdown({
-    Title = "Select Mode",
-    Desc = "เลือกโหมดการฟาร์ม",
-    Values = { "money", "rebirth" },
-    Value = "money",
-    Callback = function(option)
-        getgenv().Script_Mode = option
-        WindUI:Notify({
-            Title = "Script Mode",
-            Content = "โหมดปัจจุบัน: " .. option,
-            Duration = 3,
-            Icon = "refresh-ccw",
-        })
-    end
-})
+-- ===============================
+-- UI
+-- ===============================
 
--- 2️⃣ Toggle Auto Farm
-FarmTab:Toggle({
-    Title = "Enable Auto Farm",
-    Desc = "เปิด/ปิด Auto Farm",
+-- Auto Farm
+Tab:Toggle({
+    Title = "Auto Farm",
+    Desc = "แตะ Win ทุกโลก",
     Type = "Checkbox",
     Value = false,
-    Callback = function(state)
-        AutoFarm = state
-        WindUI:Notify({
-            Title = "Auto Farm",
-            Content = (state and "เปิด" or "ปิด"),
-            Duration = 3,
-            Icon = "bird",
-        })
+    Callback = function(v)
+        AutoFarm = v
     end
 })
 
--- 3️⃣ Dropdown เลือกอัป
-FarmTab:Dropdown({
-    Title = "Select Upgrades",
-    Desc = "เลือกอัปที่จะออโต้",
+-- Dropdown Upgrade
+Tab:Dropdown({
+    Title = "Select Upgrade",
+    Desc = "เลือกอัปเกรด",
     Values = { "Cash", "WalkSpeed", "Health" },
-    Value = {},
     Multi = true,
     AllowNone = true,
-    Callback = function(options)
-        SelectedUpgrades = options
+    Value = {},
+    Callback = function(v)
+        SelectedUpgrades = v
     end
 })
 
--- 4️⃣ Toggle Auto Upgrade
-FarmTab:Toggle({
-    Title = "Enable Auto Upgrade",
-    Desc = "เปิด/ปิด Auto Upgrade",
+-- Auto Upgrade
+Tab:Toggle({
+    Title = "Auto Upgrade",
+    Desc = "ยิงอัปเกรด",
     Type = "Checkbox",
     Value = false,
-    Callback = function(state)
-        AutoUpgradeEnabled = state
-        WindUI:Notify({
-            Title = "Auto Upgrade",
-            Content = (state and "เปิด" or "ปิด"),
-            Duration = 3,
-            Icon = "star",
-        })
+    Callback = function(v)
+        AutoUpgrade = v
     end
 })
 
-FarmTab:Select()
+-- Auto Rebirth
+Tab:Toggle({
+    Title = "Auto Rebirth",
+    Desc = "ยิงรีเบิด",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(v)
+        AutoRebirth = v
+    end
+})
+
+Tab:Select()
