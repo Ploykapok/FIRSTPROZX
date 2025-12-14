@@ -99,7 +99,7 @@ local Tab = Window:Tab({
 -- Auto Farm
 Tab:Toggle({
     Title = "Auto Farm",
-    Desc = "แตะ Win ทุกโลก",
+    
     Type = "Checkbox",
     Value = false,
     Callback = function(v)
@@ -110,7 +110,7 @@ Tab:Toggle({
 -- Dropdown Upgrade
 Tab:Dropdown({
     Title = "Select Upgrade",
-    Desc = "เลือกอัปเกรด",
+    
     Values = { "Cash", "WalkSpeed", "Health" },
     Multi = true,
     AllowNone = true,
@@ -123,7 +123,7 @@ Tab:Dropdown({
 -- Auto Upgrade
 Tab:Toggle({
     Title = "Auto Upgrade",
-    Desc = "ยิงอัปเกรด",
+    
     Type = "Checkbox",
     Value = false,
     Callback = function(v)
@@ -134,7 +134,7 @@ Tab:Toggle({
 -- Auto Rebirth
 Tab:Toggle({
     Title = "Auto Rebirth",
-    Desc = "ยิงรีเบิด",
+   
     Type = "Checkbox",
     Value = false,
     Callback = function(v)
