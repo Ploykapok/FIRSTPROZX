@@ -1,0 +1,260 @@
+-- StarterPlayerScripts/AutoTrain.client.lua
+-- ============== AUTO TRAIN + SMART TP + UI ==============
+
+-- ================= SERVICES =================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local TrainRemote = Remotes:WaitForChild("RemoteEvent")
+
+-- ================= SETTINGS =================
+local TRAIN_DELAY = 0.25
+local Y_OFFSET = 6
+
+local K  = 1_000
+local M  = 1_000_000
+local B  = 1_000_000_000
+local T  = 1_000_000_000_000
+local QD = 1_000_000_000_000_000
+
+-- ================= STATE (สำคัญมาก) =================
+local enabled = {}
+local currentSpot = {}
+
+-- ================= STAT IDS =================
+local STAT_ID = {
+	Strength   = 1,
+	Durability = 2,
+	Chakra     = 3,
+	Sword      = 4,
+	Agility    = 5,
+	Speed      = 6,
+}
+
+-- ================= TRAIN SPOTS =================
+local SPOTS = {
+	Strength = {
+		{req=100,    path="Workspace.Map.TrainingAreas.Training Dummy"},
+		{req=100*K,  path="Workspace.Map.TrainingAreas.Fridge.Part"},
+		{req=1*M,    path="Workspace.Map.TrainingAreas.Meteor"},
+		{req=100*M,  path="Workspace.Map.TrainingAreas.Arena.Part"},
+		{req=1*B,    path="Workspace.Map.TrainingAreas.ExcaliburRocks.Model"},
+		{req=50*T,   path="Workspace.Map.TrainingAreas.FloatingIsland"},
+	},
+	Durability = {
+		{req=100,    path="Workspace.Map.TrainingAreas.Pirate ship.Model"},
+		{req=1*M,    path="Workspace.Map.TrainingAreas.Paw"},
+		{req=100*M,  path="Workspace.Map.TrainingAreas.BlackFire.Fire"},
+	},
+	Chakra = {
+		{req=100,    path="Workspace.Map.TrainingAreas.Tree1.ObjectRoot"},
+		{req=100*K,  path="Workspace.Map.TrainingAreas.Waterfall.Pillar"},
+		{req=10*M,   path="Workspace.Map.TrainingAreas.Fox.Fox"},
+		{req=100*M,  path="Workspace.Map.TrainingAreas.PinkSwords.Handle"},
+		{req=50*T,   path="Workspace.Map.TrainingAreas.RamenShop.polySurface481"},
+		{req=25*QD,  path="Workspace.Map.TrainingAreas.Ultimate Dragon.Meshes/shenron4"},
+	},
+	Agility = {
+		{req=100,  path="Workspace.Map.TrainingAreas.Trampoline.Bouncy"},
+		{req=10*K, path="Workspace.Map.TrainingAreas.Gravity.Part"},
+	},
+	Speed = {
+		{req=100,  path="Workspace.Map.TrainingAreas.Treadmills"},
+		{req=10*K, path="Workspace.Map.TrainingAreas.Gravity.Part"},
+	},
+	Sword = {},
+}
+
+-- ================= HELPERS =================
+local function getStatValue(stat)
+	local stats = player:FindFirstChild("Stats")
+	if not stats then return 0 end
+	local v = stats:FindFirstChild(tostring(STAT_ID[stat]))
+	return (v and v.Value) or 0
+end
+
+local function getHRP()
+	return player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+end
+
+local function resolvePath(path)
+	path = path:gsub("^Workspace%.","")
+	local cur = workspace
+	for token in path:gmatch("[^%.]+") do
+		cur = cur:FindFirstChild(token)
+		if not cur then
+			warn("PATH NOT FOUND:", path)
+			return nil
+		end
+	end
+	return cur
+end
+
+local function findPart(inst)
+	if inst:IsA("BasePart") then return inst end
+	if inst:IsA("Model") and inst.PrimaryPart then return inst.PrimaryPart end
+	for _,d in ipairs(inst:GetDescendants()) do
+		if d:IsA("BasePart") then return d end
+	end
+end
+
+local function teleport(path)
+	local hrp = getHRP()
+	local inst = resolvePath(path)
+	if hrp and inst then
+		local p = findPart(inst)
+		if p then
+			hrp.CFrame = p.CFrame + Vector3.new(0, Y_OFFSET, 0)
+		end
+	end
+end
+
+local function getSpotName(path)
+	return path and (path:match("([^%.]+)$")) or "-"
+end
+
+local function bestSpot(stat)
+	local value = getStatValue(stat)
+	local best, bestReq = nil, 0
+	for _,s in ipairs(SPOTS[stat]) do
+		if value >= s.req and s.req > bestReq then
+			bestReq = s.req
+			best = s
+		end
+	end
+	return best
+end
+
+-- ================= UI =================
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+gui.Name = "AutoTrainGui"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.fromOffset(320,280)
+frame.Position = UDim2.fromScale(0.06,0.25)
+frame.BackgroundColor3 = Color3.fromRGB(28,28,28)
+frame.BorderSizePixel = 0
+Instance.new("UICorner",frame).CornerRadius = UDim.new(0,14)
+
+local top = Instance.new("Frame", frame)
+top.Size = UDim2.new(1,0,0,40)
+top.BackgroundColor3 = Color3.fromRGB(20,20,20)
+Instance.new("UICorner",top).CornerRadius = UDim.new(0,14)
+
+local title = Instance.new("TextLabel", top)
+title.Size = UDim2.new(1,0,1,0)
+title.BackgroundTransparency = 1
+title.Text = "ANIMEGPT"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextColor3 = Color3.new(1,1,1)
+
+spotLabel = Instance.new("TextLabel", frame)
+spotLabel.Position = UDim2.fromOffset(10,42)
+spotLabel.Size = UDim2.new(1,-20,0,26)
+spotLabel.BackgroundTransparency = 1
+spotLabel.Text = "Farming: -"
+spotLabel.Font = Enum.Font.Gotham
+spotLabel.TextSize = 13
+spotLabel.TextColor3 = Color3.fromRGB(200,200,200)
+spotLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Drag UI
+do
+	local dragging,start,pos
+	top.InputBegan:Connect(function(i)
+		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+			dragging=true
+			start=i.Position
+			pos=frame.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(i)
+		if dragging then
+			local d=i.Position-start
+			frame.Position=UDim2.new(pos.X.Scale,pos.X.Offset+d.X,pos.Y.Scale,pos.Y.Offset+d.Y)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function()
+		dragging=false
+	end)
+end
+
+-- Buttons
+local container = Instance.new("Frame", frame)
+container.Position = UDim2.fromOffset(10,78)
+container.Size = UDim2.new(1,-20,1,-88)
+container.BackgroundTransparency = 1
+
+local grid = Instance.new("UIGridLayout", container)
+grid.CellSize = UDim2.fromOffset(140,38)
+grid.CellPadding = UDim2.fromOffset(10,10)
+
+local function makeToggle(stat)
+	enabled[stat] = false
+	local btn = Instance.new("TextButton", container)
+	btn.Text = stat.."\nOFF"
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 13
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.BackgroundColor3 = Color3.fromRGB(55,55,55)
+	btn.BorderSizePixel = 0
+	Instance.new("UICorner",btn).CornerRadius = UDim.new(0,12)
+
+	btn.MouseButton1Click:Connect(function()
+		enabled[stat] = not enabled[stat]
+		currentSpot[stat] = nil
+		btn.Text = stat..(enabled[stat] and "\nON" or "\nOFF")
+		btn.BackgroundColor3 = enabled[stat] and Color3.fromRGB(70,180,100) or Color3.fromRGB(55,55,55)
+		if not enabled[stat] then
+			spotLabel.Text = "Farming: -"
+		end
+	end)
+end
+
+makeToggle("Chakra")
+makeToggle("Strength")
+makeToggle("Durability")
+makeToggle("Agility")
+makeToggle("Speed")
+makeToggle("Sword")
+
+-- ================= UI TOGGLE BUTTON =================
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.fromOffset(44,44)
+toggleBtn.Position = UDim2.fromScale(0.02,0.5)
+toggleBtn.Text = "≡"
+toggleBtn.TextSize = 22
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1,0)
+
+local uiVisible = true
+toggleBtn.MouseButton1Click:Connect(function()
+	uiVisible = not uiVisible
+	frame.Visible = uiVisible
+	toggleBtn.Text = uiVisible and "≡" or "▶"
+end)
+
+-- ================= MAIN LOOP =================
+task.spawn(function()
+	while true do
+		for stat,on in pairs(enabled) do
+			if on then
+				local s = bestSpot(stat)
+				if s and currentSpot[stat] ~= s.path then
+					teleport(s.path)
+					currentSpot[stat] = s.path
+					spotLabel.Text = "Farming: "..getSpotName(s.path).." ("..stat..")"
+				end
+				TrainRemote:FireServer("Train", STAT_ID[stat])
+			end
+		end
+		task.wait(TRAIN_DELAY)
+	end
+end)
