@@ -1,331 +1,271 @@
--- StarterPlayerScripts/AutoTrain.client.lua
--- ============== AUTO TRAIN + SMART TP + LOOP TP + OPEN MAP (FIXED) ==============
-
 -- ================= SERVICES =================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
-
 local player = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local TrainRemote = Remotes:WaitForChild("RemoteEvent")
 
--- ================= SETTINGS =================
-local TRAIN_DELAY = 0.25
-local TELEPORT_INTERVAL = 0
-local Y_OFFSET = 6
+-- ================= SETTINGS & STATE =================
+local Y_OFFSET = 0
+local K, M, B, T, QD = 1e3, 1e6, 1e9, 1e12, 1e15
 
-local K  = 1_000
-local M  = 1_000_000
-local B  = 1_000_000_000
-local T  = 1_000_000_000_000
-local QD = 1_000_000_000_000_000
-
--- ================= STATE =================
-local enabled = {}
-local currentSpot = {}
-local lastTeleport = {}
-local openMapRunning = false
-
--- ================= STAT IDS =================
-local STAT_ID = {
-	Strength   = 1,
-	Durability = 2,
-	Chakra     = 3,
-	Sword      = 4,
-	Agility    = 5,
-	Speed      = 6,
+-- เพิ่มสถานะให้ครบทุกอัน
+local enabled = { 
+    Chakra = false, 
+    Strength = false, 
+    Durability = false, 
+    Agility = false, 
+    Speed = false, 
+    Sword = false 
 }
 
--- ================= TRAIN SPOTS =================
+local STAT_ID = { 
+    Strength = 1, 
+    Durability = 2, 
+    Chakra = 3, 
+    Sword = 4, 
+    Agility = 5, 
+    Speed = 6 
+}
+
+-- ================= DATA SPOTS =================
 local SPOTS = {
-	Strength = {
-		{req=100, path="Workspace.Map.TrainingAreas.Training Dummy"},
-		{req=100*K, path="Workspace.Map.TrainingAreas.Fridge.Part"},
-		{req=1*M, path="Workspace.Map.TrainingAreas.Meteor"},
-		{req=100*M, path="Workspace.Map.TrainingAreas.Arena.Part"},
-		{req=1*B, path="Workspace.Map.TrainingAreas.ExcaliburRocks.Model"},
-		{req=50*T, path="Workspace.Map.TrainingAreas.FloatingIsland"},
-	},
-	Durability = {
-		{req=100, path="Workspace.Map.TrainingAreas.Pirate ship.Model"},
-		{req=1*M, path="Workspace.Map.TrainingAreas.Paw"},
-		{req=100*M, path="Workspace.Map.TrainingAreas.BlackFire.Fire"},
-	},
-	Chakra = {
-		{req=100, path="Workspace.Map.TrainingAreas.Tree1.ObjectRoot"},
-		{req=100*K, path="Workspace.Map.TrainingAreas.Waterfall.Pillar"},
-		{req=10*M, path="Workspace.Map.TrainingAreas.Fox.Fox"},
-		{req=100*M, path="Workspace.Map.TrainingAreas.PinkSwords.Handle"},
-		{req=50*T, path="Workspace.Map.TrainingAreas.RamenShop.polySurface481"},
-		{req=25*QD, path="Workspace.Map.TrainingAreas.Ultimate Dragon.Meshes/shenron4"},
-	},
-	Agility = {
-		{req=100, path="Workspace.Map.TrainingAreas.Trampoline.Bouncy"},
-		{req=10*K, path="Workspace.Map.TrainingAreas.Gravity.Part"},
-	},
-	Speed = {
-		{req=100, path="Workspace.Map.TrainingAreas.Treadmills"},
-		{req=10*K, path="Workspace.Map.TrainingAreas.Gravity.Part"},
-	},
-	Sword = {},
-}
 
-local OPEN_MAP_SPOTS = {
-	"Workspace.Map.BeachIsland.Crater",
-	"Workspace.Map.CityIsland.CityIsland",
-	"Workspace.Map.CityIsland.Oversee",
-	"Workspace.Map.CityIsland.Waterfall",
-	"Workspace.Map.DimensionIsland.Dirt",
-	"Workspace.Map.MainIsland.StarterLand",
-	"Workspace.Map.SideIsland.Land",
-	"Workspace.Map.SnowIsland.Ice",
+    Strength = {
+        -- ===== เดิม =====
+        {req=100, path="Workspace.Map.TrainingAreas.Training Dummy"},
+        {req=100*K, path="Workspace.Map.TrainingAreas.Fridge.Part"},
+        {req=1*M, path="Workspace.Map.TrainingAreas.Meteor"},
+        {req=100*M, path="Workspace.Map.TrainingAreas.Arena.Part"},
+        {req=1*B, path="Workspace.Map.TrainingAreas.ExcaliburRocks.Model"},
+        {req=50*T, path="Workspace.Map.TrainingAreas.FloatingIsland"},
+
+        -- ===== เพิ่ม =====
+        {req=10*K, path="Workspace.Map.TrainingAreas.Gym"},
+        {req=10*M, path="Workspace.Map.TrainingAreas.Lookout"},
+        {req=1*B, path="Workspace.Map.TrainingAreas.Excalibur"},
+        {req=25*QD, path="Workspace.Map.TrainingAreas.Pig"},
+        {req=150*QD, path="Workspace.Map.TrainingAreas.Boulder"},
+        {req=5*T, path="Workspace.Map.TrainingAreas.FloatingIsland"},
+        {req=10^22, path="Workspace.Map.TrainingAreas.HeavenlyPillar"}, -- 10sx
+    },
+
+    Durability = {
+        -- ===== เดิม =====
+        {req=100, path="Workspace.Map.TrainingAreas.Pirate ship.Model"},
+        {req=1*M, path="Workspace.Map.TrainingAreas.Paw"},
+        {req=100*M, path="Workspace.Map.TrainingAreas.BlackFire.Fire"},
+
+        -- ===== เพิ่ม =====
+        {req=10*K, path="Workspace.Map.TrainingAreas.Corp"},
+        {req=5*T, path="Workspace.Map.TrainingAreas.Blackhole"},
+        {req=250*T, path="Workspace.Map.TrainingAreas.Founder:GetChildren()[3].Model.Head"},
+        {req=1*B, path="Workspace.Map.TrainingAreas.King Kais"},
+        {req=100*B, path="Workspace.Map.TrainingAreas.Time Chamber"},
+        {req=25*QD, path="Workspace.Map.TrainingAreas.Marine"},
+        {req=10^22, path="Workspace.Map.TrainingAreas.IslandOfPower:GetChildren()[7]"},
+    },
+
+    Chakra = {
+        -- ===== เดิม =====
+        {req=100, path="Workspace.Map.TrainingAreas.Tree1.ObjectRoot"},
+        {req=100*K, path="Workspace.Map.TrainingAreas.Waterfall.Pillar"},
+        {req=10*M, path="Workspace.Map.TrainingAreas.Fox.Fox"},
+        {req=100*M, path="Workspace.Map.TrainingAreas.PinkSwords.Handle"},
+        {req=50*T, path="Workspace.Map.TrainingAreas.RamenShop.polySurface481"},
+        {req=25*QD, path="Workspace.Map.TrainingAreas.Ultimate Dragon.Meshes/shenron4"},
+
+        -- ===== เพิ่ม =====
+        {req=10*K, path="Workspace.Map.TrainingAreas.Library.Book"},
+        {req=1*M, path="Workspace.Map.TrainingAreas.ToriiGate"},
+        {req=10*M, path="Workspace.Map.TrainingAreas.Fox.Kurama"},
+        {req=100*B, path="Workspace.Map.TrainingAreas.Ice"},
+        {req=1*B, path="workspace.Map.TrainingAreas.Sage"},
+        {req=5*T, path="Workspace.Map.TrainingAreas.RamenShop"},
+        {req=25*QD, path="Workspace.Map.TrainingAreas.DoorBox"},
+        {req=150*QD, path="Workspace.Map.TrainingAreas.Eyeball"},
+        {req=250*T, path="Workspace.Map.TrainingAreas.Ultimate Dragon"},
+        {req=10^22, path="Workspace.Map.TrainingAreas.IceTree"}, -- 10sx
+    },
+
+    Agility = {
+        -- ===== เดิม =====
+        {req=100, path="Workspace.Map.TrainingAreas.Trampoline.Bouncy"},
+        {req=10*K, path="Workspace.Map.TrainingAreas.Gravity.Part"},
+
+        -- ===== เพิ่ม =====
+        {req=5*M, path="Workspace.Map.TrainingAreas.Church:GetChildren()[172]"},
+        {req=100*K, path="Workspace.Map.TrainingAreas.KunaiGrounds"},
+    },
+
+    Speed = {
+        -- ===== เดิม =====
+        {req=100, path="Workspace.Map.TrainingAreas.Treadmills"},
+        {req=10*K, path="Workspace.Map.TrainingAreas.Gravity.Part"},
+
+        -- ===== เพิ่ม =====
+        {req=5*M, path="Workspace.Map.TrainingAreas.Church:GetChildren()[172]"},
+        {req=100*K, path="Workspace.Map.TrainingAreas.KunaiGrounds"},
+    },
+
+    Sword = {} -- ดาบไม่มีสปอต (ถูกต้องแล้ว)
 }
 
 -- ================= HELPERS =================
-local function getHRP()
-	return player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-end
-
+local function getHRP() return player.Character and player.Character:FindFirstChild("HumanoidRootPart") end
 local function getStatValue(stat)
-	local stats = player:FindFirstChild("Stats")
-	if not stats then return 0 end
-	local v = stats:FindFirstChild(tostring(STAT_ID[stat]))
-	return v and v.Value or 0
+    local stats = player:FindFirstChild("Stats")
+    if not stats then return 0 end
+    local v = stats:FindFirstChild(tostring(STAT_ID[stat]))
+    return v and v.Value or 0
 end
-
 local function resolvePath(path)
-	path = path:gsub("^Workspace%.","")
-	local cur = workspace
-	for token in path:gmatch("[^%.]+") do
-		cur = cur:FindFirstChild(token)
-		if not cur then
-			warn("PATH NOT FOUND:", path)
-			return nil
-		end
-	end
-	return cur
+    path = path:gsub("^Workspace%.","")
+    local cur = workspace
+    for token in path:gmatch("[^%.]+") do
+        cur = cur:FindFirstChild(token)
+        if not cur then return nil end
+    end
+    return cur
 end
-
 local function findPart(inst)
-	if not inst then return end
-	if inst:IsA("BasePart") then return inst end
-	if inst:IsA("Model") and inst.PrimaryPart then return inst.PrimaryPart end
-	for _,d in ipairs(inst:GetDescendants()) do
-		if d:IsA("BasePart") then return d end
-	end
+    if not inst then return end
+    if inst:IsA("BasePart") then return inst end
+    if inst:IsA("Model") and inst.PrimaryPart then return inst.PrimaryPart end
+    for _,d in ipairs(inst:GetDescendants()) do if d:IsA("BasePart") then return d end end
+end
+local function teleportToPath(path)
+    local hrp = getHRP()
+    local inst = resolvePath(path)
+    if hrp and inst then
+        local p = findPart(inst)
+        if p then hrp.CFrame = p.CFrame + Vector3.new(0, Y_OFFSET, 0) end
+    end
 end
 
-local function teleport(path)
-	if openMapRunning then return end
-	local hrp = getHRP()
-	local inst = resolvePath(path)
-	if hrp and inst then
-		local p = findPart(inst)
-		if p then
-			hrp.CFrame = p.CFrame + Vector3.new(0,Y_OFFSET,0)
-		end
-	end
+-- ================= LOAD UI LIBRARY =================
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+
+local Window = Library:Window({
+    Title = "x2zu [ Stellar ]",
+    Desc = "AnimeGPT - Complete Farm",
+    Icon = 105059922903197,
+    Theme = "Dark",
+    Config = {
+        Keybind = Enum.KeyCode.LeftControl,
+        Size = UDim2.new(0, 500, 0, 400)
+    },
+    CloseUIButton = { Enabled = true, Text = "Close" }
+})
+
+-- Tab
+local Tab = Window:Tab({Title = "Auto Train", Icon = "star"}) do
+    Tab:Section({Title = "All Stats Training"})
+
+    -- Auto Strength
+    Tab:Toggle({
+        Title = "Auto Strength",
+        Desc = "Train Strength & Auto TP",
+        Value = false,
+        Callback = function(v) enabled.Strength = v end
+    })
+
+    -- Auto Durability
+    Tab:Toggle({
+        Title = "Auto Durability",
+        Desc = "Train Durability & Auto TP",
+        Value = false,
+        Callback = function(v) enabled.Durability = v end
+    })
+
+    -- Auto Chakra
+    Tab:Toggle({
+        Title = "Auto Chakra",
+        Desc = "Train Chakra & Auto TP",
+        Value = false,
+        Callback = function(v) enabled.Chakra = v end
+    })
+
+    -- Auto Agility
+    Tab:Toggle({
+        Title = "Auto Agility",
+        Desc = "Train Agility & Auto TP",
+        Value = false,
+        Callback = function(v) enabled.Agility = v end
+    })
+
+    -- Auto Speed (เพิ่มกลับมาแล้ว)
+    Tab:Toggle({
+        Title = "Auto Speed",
+        Desc = "Train Speed & Auto TP",
+        Value = false,
+        Callback = function(v) enabled.Speed = v end
+    })
+
+    -- Auto Sword (เพิ่มกลับมาแล้ว)
+    Tab:Toggle({
+        Title = "Auto Sword",
+        Desc = "Auto swing sword",
+        Value = false,
+        Callback = function(v) enabled.Sword = v end
+    })
 end
 
-local function bestSpot(stat)
-	local val = getStatValue(stat)
-	local best, req = nil, 0
-	for _,s in ipairs(SPOTS[stat]) do
-		if val >= s.req and s.req > req then
-			req = s.req
-			best = s
-		end
-	end
-	return best
+-- Extra Tab
+local Extra = Window:Tab({Title = "Misc", Icon = "tag"}) do
+    Extra:Section({Title = "Utility"})
+    
+    Extra:Button({
+        Title = "Unlock All Map",
+        Desc = "Teleport to all islands once",
+        Callback = function()
+            local MAP_SPOTS = {
+                "Workspace.Map.BeachIsland.Crater", "Workspace.Map.CityIsland.CityIsland",
+                "Workspace.Map.CityIsland.Oversee", "Workspace.Map.CityIsland.Waterfall",
+                "Workspace.Map.DimensionIsland.Dirt", "Workspace.Map.MainIsland.StarterLand",
+                "Workspace.Map.SideIsland.Land", "Workspace.Map.SnowIsland.Ice"
+            }
+            local hrp = getHRP()
+            if hrp then
+                local oldPos = hrp.CFrame
+                for _, p in ipairs(MAP_SPOTS) do
+                    teleportToPath(p)
+                    task.wait()
+                end
+                hrp.CFrame = oldPos
+                Window:Notify({Title = "Success", Desc = "Map Unlocked!", Time = 3})
+            end
+        end
+    })
 end
-
--- ================= OPEN MAP (FIXED) =================
-local function openMapTeleport()
-	if openMapRunning then return end
-	openMapRunning = true
-
-	local hrp = getHRP()
-	if not hrp then
-		openMapRunning = false
-		return
-	end
-
-	local oldCF = hrp.CFrame
-
-	for _,path in ipairs(OPEN_MAP_SPOTS) do
-		local inst = resolvePath(path)
-		local p = findPart(inst)
-		if p then
-			hrp.CFrame = p.CFrame + Vector3.new(0,Y_OFFSET,0)
-			task.wait(0.3)
-		end
-	end
-
-	task.wait(0.4)
-	hrp.CFrame = oldCF
-	openMapRunning = false
-end
-
--- ================= UI =================
-local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.ResetOnSpawn = false
-
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromOffset(300,260)
-frame.Position = UDim2.fromScale(0.06,0.25)
-frame.BackgroundColor3 = Color3.fromRGB(28,28,28)
-frame.BorderSizePixel = 0
-Instance.new("UICorner",frame).CornerRadius = UDim.new(0,14)
-
-local top = Instance.new("Frame", frame)
-top.Size = UDim2.new(1,0,0,38)
-top.BackgroundColor3 = Color3.fromRGB(20,20,20)
-Instance.new("UICorner",top).CornerRadius = UDim.new(0,14)
-
--- ================= DRAG UI (PC + MOBILE) =================
-do
-	local dragging = false
-	local dragStart, startPos
-
-	top.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			dragStart = input.Position
-			startPos = frame.Position
-		end
-	end)
-
-	UserInputService.InputChanged:Connect(function(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch) then
-			local delta = input.Position - dragStart
-			frame.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
-		end
-	end)
-
-	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = false
-		end
-	end)
-end
-
-local title = Instance.new("TextLabel", top)
-title.Size = UDim2.new(1,0,1,0)
-title.BackgroundTransparency = 1
-title.Text = "ANIMEGPT"
-title.Font = Enum.Font.GothamBold
-title.TextSize = 15
-title.TextColor3 = Color3.new(1,1,1)
-
-local container = Instance.new("Frame", frame)
-container.Position = UDim2.fromOffset(10,50)
-container.Size = UDim2.new(1,-20,1,-60)
-container.BackgroundTransparency = 1
-
-local grid = Instance.new("UIGridLayout", container)
-grid.CellSize = UDim2.fromOffset(130,36)
-grid.CellPadding = UDim2.fromOffset(8,8)
-
-local function makeToggle(stat)
-	enabled[stat] = false
-	local b = Instance.new("TextButton", container)
-	b.Text = stat.."\nOFF"
-	b.Font = Enum.Font.GothamBold
-	b.TextSize = 12
-	b.TextColor3 = Color3.new(1,1,1)
-	b.BackgroundColor3 = Color3.fromRGB(55,55,55)
-	b.BorderSizePixel = 0
-	Instance.new("UICorner",b).CornerRadius = UDim.new(0,10)
-
-	b.MouseButton1Click:Connect(function()
-		enabled[stat] = not enabled[stat]
-		lastTeleport[stat] = nil
-		b.Text = stat .. (enabled[stat] and "\nON" or "\nOFF")
-		b.BackgroundColor3 = enabled[stat]
-			and Color3.fromRGB(70,180,100)
-			or Color3.fromRGB(55,55,55)
-	end)
-end
-
-makeToggle("Chakra")
-makeToggle("Strength")
-makeToggle("Durability")
-makeToggle("Agility")
-makeToggle("Speed")
-makeToggle("Sword")
-
-local openMapBtn = Instance.new("TextButton", container)
-openMapBtn.Text = "OPEN MAP"
-openMapBtn.Font = Enum.Font.GothamBold
-openMapBtn.TextSize = 13
-openMapBtn.TextColor3 = Color3.new(1,1,1)
-openMapBtn.BackgroundColor3 = Color3.fromRGB(70,130,200)
-openMapBtn.BorderSizePixel = 0
-Instance.new("UICorner",openMapBtn).CornerRadius = UDim.new(0,10)
-
-openMapBtn.MouseButton1Click:Connect(openMapTeleport)
-
--- ================= STOP ALL BUTTON =================
-local stopAllBtn = Instance.new("TextButton", container)
-stopAllBtn.Text = "STOP ALL"
-stopAllBtn.Font = Enum.Font.GothamBold
-stopAllBtn.TextSize = 13
-stopAllBtn.TextColor3 = Color3.new(1,1,1)
-stopAllBtn.BackgroundColor3 = Color3.fromRGB(180,70,70)
-stopAllBtn.BorderSizePixel = 0
-stopAllBtn.LayoutOrder = 999
-Instance.new("UICorner", stopAllBtn).CornerRadius = UDim.new(0,10)
-
-stopAllBtn.MouseButton1Click:Connect(function()
-	for stat in pairs(enabled) do
-		enabled[stat] = false
-		lastTeleport[stat] = nil
-	end
-	openMapRunning = false
-end)
 
 -- ================= MAIN LOOP =================
 task.spawn(function()
-	while true do
-		local now = os.clock()
-		for stat,on in pairs(enabled) do
-			if on then
-				local s = bestSpot(stat)
-				if s and (not lastTeleport[stat] or now-lastTeleport[stat]>=TELEPORT_INTERVAL) then
-					teleport(s.path)
-					lastTeleport[stat] = now
-				end
-				TrainRemote:FireServer("Train", STAT_ID[stat])
-			end
-		end
-		task.wait(TRAIN_DELAY)
-	end
+    while true do
+        for stat, on in pairs(enabled) do
+            if on then
+                -- Check for TP
+                local val = getStatValue(stat)
+                local best = nil
+                local maxReq = -1
+                for _, s in ipairs(SPOTS[stat] or {}) do
+                    if val >= s.req and s.req > maxReq then
+                        maxReq = s.req
+                        best = s
+                    end
+                end
+                if best then teleportToPath(best.path) end
+                
+                -- Remote Call
+                TrainRemote:FireServer("Train", STAT_ID[stat])
+            end
+        end
+        task.wait()
+    end
 end)
 
--- ================= UI TOGGLE BUTTON =================
-local uiToggle = Instance.new("TextButton", gui)
-uiToggle.Size = UDim2.fromOffset(42,42)
-uiToggle.Position = UDim2.fromScale(0.02,0.5)
-uiToggle.BackgroundColor3 = Color3.fromRGB(40,40,40)
-uiToggle.Text = "≡"
-uiToggle.TextSize = 22
-uiToggle.Font = Enum.Font.GothamBold
-uiToggle.TextColor3 = Color3.new(1,1,1)
-uiToggle.BorderSizePixel = 0
-Instance.new("UICorner", uiToggle).CornerRadius = UDim.new(1,0)
-
-local uiVisible = true
-uiToggle.MouseButton1Click:Connect(function()
-	uiVisible = not uiVisible
-	frame.Visible = uiVisible
-	uiToggle.Text = uiVisible and "≡" or "▶"
-end)
+Window:Notify({
+    Title = "ANIMEGPT Loaded",
+    Desc = "All stats ready! Press Left Control to Toggle UI",
+    Time = 4
+})
