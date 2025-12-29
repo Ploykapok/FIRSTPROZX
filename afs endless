@@ -11,6 +11,18 @@ local Config = {
         Sword = nil,
         Agility = nil,
         Speed = nil
+    },
+    YOffset = 0,
+    AutoFarm = false,
+    AutoChikara = false,
+    AntiAFK = false,
+    TrainOnly = {
+        Strength = false,
+        Durability = false,
+        Chakra = false,
+        Sword = false,
+        Agility = false,
+        Speed = false
     }
 }
 
@@ -38,16 +50,16 @@ local TrainRemote = Remotes:WaitForChild("RemoteEvent")
 
 -- ================= STATE =================
 local selectedStat = Config.SelectedStat or "Strength"
-local autoFarm = false
-local teleportYOffset = 0
-local autoChikaraBox = false
+local autoFarm = Config.AutoFarm or false
+local teleportYOffset = Config.YOffset or 0
+local autoChikaraBox = Config.AutoChikara or false
 local chikaraCooldown = 5
 local lastChikaraClick = 0
 local chikaraLock = false
 local chikaraClickDelay = 0.5
-local antiAFK = false
+local antiAFK = Config.AntiAFK or false
 
-local trainOnlyStats = {
+local trainOnlyStats = Config.TrainOnly or {
     Strength = false,
     Durability = false,
     Chakra = false,
@@ -176,10 +188,13 @@ Tab:Dropdown({
     end
 })
 
-Tab:Toggle({Title = "Auto Farm", Value = false, Callback = function(v) autoFarm = v end})
+Tab:Toggle({Title = "Auto Farm", Value = autoFarm, Callback = function(v)
+    autoFarm = v
+    Config.AutoFarm = v
+    SaveConfig()
+end})
 
 Tab:Section({Title = "Select Spot"})
-
 local function CreateSpotDropdown(title, statList, statName)
     Tab:Dropdown({
         Title = title,
@@ -192,44 +207,28 @@ local function CreateSpotDropdown(title, statList, statName)
         end
     })
 end
-
--- Strength
-CreateSpotDropdown("Strength Spots", {
-    "Training Dummy","Fridge","Gym","Meteor","Lookout","Arena",
-    "Excalibur","FloatingIsland","Pig","Boulder","HeavenlyPillar"
-}, "Strength")
-
--- Durability
-CreateSpotDropdown("Durability Spots", {
-    "Pirate ship","Corp","Paw","BlackFire","Blackhole","Founder",
-    "King Kais","Time Chamber","Marine","IslandOfPower"
-}, "Durability")
-
--- Chakra
-CreateSpotDropdown("Chakra Spots", {
-    "Tree1","Waterfall","Library","ToriiGate","Fox","PinkSwords",
-    "Sage","Ice","RamenShop","Ultimate Dragon","DoorBox","Eyeball","IceTree"
-}, "Chakra")
-
--- Agility
+CreateSpotDropdown("Strength Spots", {"Training Dummy","Fridge","Gym","Meteor","Lookout","Arena","Excalibur","FloatingIsland","Pig","Boulder","HeavenlyPillar"}, "Strength")
+CreateSpotDropdown("Durability Spots", {"Pirate ship","Corp","Paw","BlackFire","Blackhole","Founder","King Kais","Time Chamber","Marine","IslandOfPower"}, "Durability")
+CreateSpotDropdown("Chakra Spots", {"Tree1","Waterfall","Library","ToriiGate","Fox","PinkSwords","Sage","Ice","RamenShop","Ultimate Dragon","DoorBox","Eyeball","IceTree"}, "Chakra")
 CreateSpotDropdown("Agility Spots", {"Trampoline","Gravity","KunaiGrounds","Church"}, "Agility")
-
--- Speed
 CreateSpotDropdown("Speed Spots", {"Treadmills","Gravity","KunaiGrounds","Church"}, "Speed")
 
 Tab:Section({Title = "Auto Farm Chikara"})
-Tab:Toggle({Title = "Auto get Chikara Crate", Value = false, Callback = function(v) autoChikaraBox = v end})
+Tab:Toggle({Title = "Auto get Chikara Crate", Value = autoChikaraBox, Callback = function(v)
+    autoChikaraBox = v
+    Config.AutoChikara = v
+    SaveConfig()
+end})
 
 -- ================= TRAIN ONLY TAB =================
 local TTab = Window:Tab({Title = "Train Only", Icon = "zap"})
 TTab:Section({Title = "Train only"})
 for _, stat in ipairs({"Strength","Durability","Chakra","Sword","Agility","Speed"}) do
-    TTab:Toggle({
-        Title = stat,
-        Callback = function(v)
-            trainOnlyStats[stat] = v
-        end
-    })
+    TTab:Toggle({Title = stat, Value = trainOnlyStats[stat], Callback = function(v)
+        trainOnlyStats[stat] = v
+        Config.TrainOnly[stat] = v
+        SaveConfig()
+    end})
 end
 
 -- ================= QUEST TAB =================
@@ -242,21 +241,26 @@ end
 -- ================= SETTING TAB =================
 local STab = Window:Tab({Title = "Setting", Icon = "map"})
 STab:Section({Title = "Setting Farm"})
+
 STab:Slider({
     Title = "Y Offset",
     Desc = "ปรับความสูง/ต่ำ ตอนวาป",
     Min = -5,
     Max = 5,
-    Default = 0,
+    Default = teleportYOffset,
     Increment = 1,
-    Callback = function(v) teleportYOffset = v end
+    Callback = function(v)
+        teleportYOffset = v
+        Config.YOffset = v
+        SaveConfig()
+    end
 })
-STab:Toggle({
-    Title = "Anti AFK",
-    Desc = "กันโดนเตะออกจากเกม",
-    Value = false,
-    Callback = function(v) antiAFK = v end
-})
+
+STab:Toggle({Title = "Anti AFK", Desc = "กันโดนเตะออกจากเกม", Value = antiAFK, Callback = function(v)
+    antiAFK = v
+    Config.AntiAFK = v
+    SaveConfig()
+end})
 
 -- ================= AUTO FARM LOOP =================
 task.spawn(function()
@@ -298,8 +302,4 @@ task.spawn(function()
 end)
 
 -- ================= NOTIFY =================
-Window:Notify({
-    Title = "Loaded",
-    Desc = "Smart Warp + Auto Farm พร้อมใช้งาน",
-    Time = 4
-})
+Window:Notify({Title = "Loaded", Desc = "Smart Warp + Auto Farm พร้อมใช้งาน", Time = 4})
