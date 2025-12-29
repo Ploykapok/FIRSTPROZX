@@ -1,18 +1,62 @@
+-- ================= SAVE CONFIG =================
+local CONFIG_FILE = "KittyHub_Config.json"
+local HttpService = game:GetService("HttpService")
+
+local Config = {
+    SelectedStat = "Strength",
+    SelectedSpots = {
+        Strength = nil,
+        Durability = nil,
+        Chakra = nil,
+        Sword = nil,
+        Agility = nil,
+        Speed = nil
+    }
+}
+
+-- โหลดค่า
+if isfile(CONFIG_FILE) then
+    local data = readfile(CONFIG_FILE)
+    local decoded = HttpService:JSONDecode(data)
+    if decoded then
+        Config = decoded
+    end
+end
+
+-- เซฟค่า
+local function SaveConfig()
+    writefile(CONFIG_FILE, HttpService:JSONEncode(Config))
+end
+
 -- ================= SERVICES =================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-
 local player = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local TrainRemote = Remotes:WaitForChild("RemoteEvent")
 
 -- ================= STATE =================
-local selectedStat = "Strength"
+local selectedStat = Config.SelectedStat or "Strength"
 local autoFarm = false
+local teleportYOffset = 0
+local autoChikaraBox = false
+local chikaraCooldown = 5
+local lastChikaraClick = 0
+local chikaraLock = false
+local chikaraClickDelay = 0.5
+local antiAFK = false
 
--- เก็บ Spot แยกตาม Stat
-local selectedSpots = {
+local trainOnlyStats = {
+    Strength = false,
+    Durability = false,
+    Chakra = false,
+    Sword = false,
+    Agility = false,
+    Speed = false
+}
+
+local selectedSpots = Config.SelectedSpots or {
     Strength = nil,
     Durability = nil,
     Chakra = nil,
@@ -36,11 +80,19 @@ local function getHRP()
     return char:WaitForChild("HumanoidRootPart")
 end
 
+local VirtualUser = game:GetService("VirtualUser")
+player.Idled:Connect(function()
+    if antiAFK then
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(0.1)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    end
+end)
+
 -- ================= SMART TELEPORT =================
 local function teleportSmart(target)
     if not target then return end
     local hrp = getHRP()
-
     local targetCF
     if target:IsA("Model") then
         targetCF = target:GetPivot()
@@ -49,42 +101,50 @@ local function teleportSmart(target)
     else
         return
     end
-
     local startPos = hrp.Position
     local goalPos = targetCF.Position
     local distance = (goalPos - startPos).Magnitude
-
-    local STEP = 300 -- ปรับได้
+    local STEP = 300
     local direction = (goalPos - startPos).Unit
     local steps = math.ceil(distance / STEP)
-
     for i = 1, steps do
         local pos = startPos + direction * math.min(i * STEP, distance)
         hrp.CFrame = CFrame.new(pos)
         RunService.Heartbeat:Wait()
     end
-
-    hrp.CFrame = targetCF + Vector3.new(0, 3, 0)
+    hrp.CFrame = targetCF + Vector3.new(0, teleportYOffset, 0)
 end
 
 -- ================= TRAINING TELEPORT =================
 local function teleportTo(spotName)
     local target = workspace.Map.TrainingAreas:FindFirstChild(spotName)
-    if target then
-        teleportSmart(target)
-    end
+    if target then teleportSmart(target) end
 end
 
 -- ================= QUEST TELEPORT =================
 local function teleportToQuest(questName)
-    local npcFolder = workspace:WaitForChild("Scriptable")
-        :WaitForChild("NPC")
-        :WaitForChild("Quest")
-
+    local npcFolder = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Quest")
     local target = npcFolder:FindFirstChild(questName)
-    if target then
-        teleportSmart(target)
+    if target then teleportSmart(target) end
+end
+
+local function teleportAndClickChikaraBox()
+    if chikaraLock then return end
+    local now = os.clock()
+    if now - lastChikaraClick < chikaraCooldown then return end
+    chikaraLock = true
+    lastChikaraClick = now
+    local hrp = getHRP()
+    local crate = workspace.Scriptable.ChikaraBoxes:FindFirstChild("ChikaraCrate")
+    if not crate then chikaraLock = false return end
+    local cf = crate:IsA("Model") and crate:GetPivot() or crate.CFrame
+    hrp.CFrame = cf + Vector3.new(0, teleportYOffset, 0)
+    task.wait(chikaraClickDelay)
+    local clickBox = crate:FindFirstChild("ClickBox", true)
+    if clickBox and clickBox:FindFirstChild("ClickDetector") then
+        fireclickdetector(clickBox.ClickDetector)
     end
+    task.delay(0.6, function() chikaraLock = false end)
 end
 
 -- ================= LOAD UI =================
@@ -97,10 +157,7 @@ local Window = Library:Window({
     Desc = "Auto Farm [FREEMIER]",
     Icon = 105059922903197,
     Theme = "Dark",
-    Config = {
-        Keybind = Enum.KeyCode.LeftControl,
-        Size = UDim2.new(0, 450, 0, 350)
-    },
+    Config = { Keybind = Enum.KeyCode.LeftControl, Size = UDim2.new(0,450,0,350) },
     CloseUIButton = { Enabled = true, Text = "Close" }
 })
 
@@ -111,99 +168,128 @@ Tab:Section({Title = "Auto Farm Stat"})
 Tab:Dropdown({
     Title = "Select Stat",
     List = {"Strength","Durability","Chakra","Sword","Agility","Speed"},
-    Value = "Strength",
+    Value = selectedStat,
     Callback = function(v)
         selectedStat = v
+        Config.SelectedStat = v
+        SaveConfig()
     end
 })
 
-Tab:Toggle({
-    Title = "Auto Farm",
-    Value = false,
-    Callback = function(v)
-        autoFarm = v
-    end
-})
+Tab:Toggle({Title = "Auto Farm", Value = false, Callback = function(v) autoFarm = v end})
 
 Tab:Section({Title = "Select Spot"})
 
-Tab:Dropdown({
-    Title = "Strength Spots",
-    List = {
-        "Training Dummy","Fridge","Gym","Meteor",
-        "Lookout","Arena","Excalibur",
-        "FloatingIsland","Pig","Boulder","HeavenlyPillar"
-    },
-    Callback = function(v)
-        selectedSpots.Strength = v
-    end
-})
+local function CreateSpotDropdown(title, statList, statName)
+    Tab:Dropdown({
+        Title = title,
+        List = statList,
+        Value = selectedSpots[statName],
+        Callback = function(v)
+            selectedSpots[statName] = v
+            Config.SelectedSpots[statName] = v
+            SaveConfig()
+        end
+    })
+end
 
-Tab:Dropdown({
-    Title = "Durability Spots",
-    List = {
-        "Pirate ship","Corp","Paw","BlackFire",
-        "Blackhole","Founder","King Kais",
-        "Time Chamber","Marine","IslandOfPower"
-    },
-    Callback = function(v)
-        selectedSpots.Durability = v
-    end
-})
+-- Strength
+CreateSpotDropdown("Strength Spots", {
+    "Training Dummy","Fridge","Gym","Meteor","Lookout","Arena",
+    "Excalibur","FloatingIsland","Pig","Boulder","HeavenlyPillar"
+}, "Strength")
 
-Tab:Dropdown({
-    Title = "Chakra Spots",
-    List = {
-        "Tree1","Waterfall","Library","ToriiGate",
-        "Fox","PinkSwords","Sage","Ice",
-        "RamenShop","Ultimate Dragon",
-        "DoorBox","Eyeball","IceTree"
-    },
-    Callback = function(v)
-        selectedSpots.Chakra = v
-    end
-})
+-- Durability
+CreateSpotDropdown("Durability Spots", {
+    "Pirate ship","Corp","Paw","BlackFire","Blackhole","Founder",
+    "King Kais","Time Chamber","Marine","IslandOfPower"
+}, "Durability")
 
-Tab:Dropdown({
-    Title = "Agility Spots",
-    List = {"Trampoline","Gravity","KunaiGrounds","Church"},
-    Callback = function(v)
-        selectedSpots.Agility = v
-    end
-})
+-- Chakra
+CreateSpotDropdown("Chakra Spots", {
+    "Tree1","Waterfall","Library","ToriiGate","Fox","PinkSwords",
+    "Sage","Ice","RamenShop","Ultimate Dragon","DoorBox","Eyeball","IceTree"
+}, "Chakra")
 
-Tab:Dropdown({
-    Title = "Speed Spots",
-    List = {"Treadmills","Gravity","KunaiGrounds","Church"},
-    Callback = function(v)
-        selectedSpots.Speed = v
-    end
-})
+-- Agility
+CreateSpotDropdown("Agility Spots", {"Trampoline","Gravity","KunaiGrounds","Church"}, "Agility")
+
+-- Speed
+CreateSpotDropdown("Speed Spots", {"Treadmills","Gravity","KunaiGrounds","Church"}, "Speed")
+
+Tab:Section({Title = "Auto Farm Chikara"})
+Tab:Toggle({Title = "Auto get Chikara Crate", Value = false, Callback = function(v) autoChikaraBox = v end})
+
+-- ================= TRAIN ONLY TAB =================
+local TTab = Window:Tab({Title = "Train Only", Icon = "zap"})
+TTab:Section({Title = "Train only"})
+for _, stat in ipairs({"Strength","Durability","Chakra","Sword","Agility","Speed"}) do
+    TTab:Toggle({
+        Title = stat,
+        Callback = function(v)
+            trainOnlyStats[stat] = v
+        end
+    })
+end
 
 -- ================= QUEST TAB =================
 local QTab = Window:Tab({Title = "Teleport", Icon = "map"})
 QTab:Section({Title = "Quest"})
+for _, quest in ipairs({"Boom","Ghoul","Giovanni","Reindeer","Santa","Sword Master"}) do
+    QTab:Button({Title = quest, Callback = function() teleportToQuest(quest) end})
+end
 
-QTab:Button({Title = "Boom", Callback = function() teleportToQuest("Boom") end})
-QTab:Button({Title = "Ghoul", Callback = function() teleportToQuest("Ghoul") end})
-QTab:Button({Title = "Giovanni", Callback = function() teleportToQuest("Giovanni") end})
-QTab:Button({Title = "Reindeer", Callback = function() teleportToQuest("Reindeer") end})
-QTab:Button({Title = "Santa", Callback = function() teleportToQuest("Santa") end})
-QTab:Button({Title = "Sword Master", Callback = function() teleportToQuest("Sword Master") end})
+-- ================= SETTING TAB =================
+local STab = Window:Tab({Title = "Setting", Icon = "map"})
+STab:Section({Title = "Setting Farm"})
+STab:Slider({
+    Title = "Y Offset",
+    Desc = "ปรับความสูง/ต่ำ ตอนวาป",
+    Min = -5,
+    Max = 5,
+    Default = 0,
+    Increment = 1,
+    Callback = function(v) teleportYOffset = v end
+})
+STab:Toggle({
+    Title = "Anti AFK",
+    Desc = "กันโดนเตะออกจากเกม",
+    Value = false,
+    Callback = function(v) antiAFK = v end
+})
 
 -- ================= AUTO FARM LOOP =================
 task.spawn(function()
     while task.wait() do
         if autoFarm and selectedStat then
             local statId = STAT_ID[selectedStat]
-
-            -- Sword ไม่มี Spot
             if selectedStat == "Sword" then
                 TrainRemote:FireServer("Train", statId)
             else
                 local spot = selectedSpots[selectedStat]
                 if spot then
                     teleportTo(spot)
+                    TrainRemote:FireServer("Train", statId)
+                end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait() do
+        if autoChikaraBox then
+            teleportAndClickChikaraBox()
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.3) do
+        for stat, enabled in pairs(trainOnlyStats) do
+            if enabled then
+                local statId = STAT_ID[stat]
+                if statId then
                     TrainRemote:FireServer("Train", statId)
                 end
             end
