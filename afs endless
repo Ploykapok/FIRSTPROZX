@@ -1,6 +1,7 @@
 -- ================= SERVICES =================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -29,35 +30,60 @@ local STAT_ID = {
     Speed = 6
 }
 
--- ================= TELEPORT SYSTEM =================
+-- ================= CHARACTER =================
 local function getHRP()
     local char = player.Character or player.CharacterAdded:Wait()
     return char:WaitForChild("HumanoidRootPart")
 end
 
-local function getPart(inst)
-    if inst:IsA("BasePart") then
-        return inst
-    elseif inst:IsA("Model") then
-        if inst.PrimaryPart then
-            return inst.PrimaryPart
-        end
-        for _,v in ipairs(inst:GetDescendants()) do
-            if v:IsA("BasePart") then
-                return v
-            end
-        end
+-- ================= SMART TELEPORT =================
+local function teleportSmart(target)
+    if not target then return end
+    local hrp = getHRP()
+
+    local targetCF
+    if target:IsA("Model") then
+        targetCF = target:GetPivot()
+    elseif target:IsA("BasePart") then
+        targetCF = target.CFrame
+    else
+        return
+    end
+
+    local startPos = hrp.Position
+    local goalPos = targetCF.Position
+    local distance = (goalPos - startPos).Magnitude
+
+    local STEP = 300 -- ปรับได้
+    local direction = (goalPos - startPos).Unit
+    local steps = math.ceil(distance / STEP)
+
+    for i = 1, steps do
+        local pos = startPos + direction * math.min(i * STEP, distance)
+        hrp.CFrame = CFrame.new(pos)
+        RunService.Heartbeat:Wait()
+    end
+
+    hrp.CFrame = targetCF + Vector3.new(0, 3, 0)
+end
+
+-- ================= TRAINING TELEPORT =================
+local function teleportTo(spotName)
+    local target = workspace.Map.TrainingAreas:FindFirstChild(spotName)
+    if target then
+        teleportSmart(target)
     end
 end
 
-local function teleportTo(spotName)
-    local hrp = getHRP()
-    local target = workspace.Map.TrainingAreas:FindFirstChild(spotName)
-    if not target then return end
+-- ================= QUEST TELEPORT =================
+local function teleportToQuest(questName)
+    local npcFolder = workspace:WaitForChild("Scriptable")
+        :WaitForChild("NPC")
+        :WaitForChild("Quest")
 
-    local part = getPart(target)
-    if part then
-        hrp.CFrame = part.CFrame + Vector3.new(0,0,0)
+    local target = npcFolder:FindFirstChild(questName)
+    if target then
+        teleportSmart(target)
     end
 end
 
@@ -68,7 +94,7 @@ local Library = loadstring(game:HttpGet(
 
 local Window = Library:Window({
     Title = "Kitty Hub [AFS ENDLESS]",
-    Desc = "Auto Farm โง่",
+    Desc = "Auto Farm [FREEMIER]",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -78,11 +104,10 @@ local Window = Library:Window({
     CloseUIButton = { Enabled = true, Text = "Close" }
 })
 
--- ================= TAB =================
+-- ================= AUTO FARM TAB =================
 local Tab = Window:Tab({Title = "Auto Farm", Icon = "star"})
-Tab:Section({Title = "Auto Farm "})
+Tab:Section({Title = "Auto Farm Stat"})
 
--- เลือก Stat
 Tab:Dropdown({
     Title = "Select Stat",
     List = {"Strength","Durability","Chakra","Sword","Agility","Speed"},
@@ -92,7 +117,6 @@ Tab:Dropdown({
     end
 })
 
--- เปิด / ปิด Auto Farm
 Tab:Toggle({
     Title = "Auto Farm",
     Value = false,
@@ -103,7 +127,6 @@ Tab:Toggle({
 
 Tab:Section({Title = "Select Spot"})
 
--- Strength
 Tab:Dropdown({
     Title = "Strength Spots",
     List = {
@@ -116,7 +139,6 @@ Tab:Dropdown({
     end
 })
 
--- Durability
 Tab:Dropdown({
     Title = "Durability Spots",
     List = {
@@ -129,7 +151,6 @@ Tab:Dropdown({
     end
 })
 
--- Chakra
 Tab:Dropdown({
     Title = "Chakra Spots",
     List = {
@@ -143,7 +164,6 @@ Tab:Dropdown({
     end
 })
 
--- Agility
 Tab:Dropdown({
     Title = "Agility Spots",
     List = {"Trampoline","Gravity","KunaiGrounds","Church"},
@@ -152,7 +172,6 @@ Tab:Dropdown({
     end
 })
 
--- Speed
 Tab:Dropdown({
     Title = "Speed Spots",
     List = {"Treadmills","Gravity","KunaiGrounds","Church"},
@@ -161,20 +180,29 @@ Tab:Dropdown({
     end
 })
 
+-- ================= QUEST TAB =================
+local QTab = Window:Tab({Title = "Teleport", Icon = "map"})
+QTab:Section({Title = "Quest"})
+
+QTab:Button({Title = "Boom", Callback = function() teleportToQuest("Boom") end})
+QTab:Button({Title = "Ghoul", Callback = function() teleportToQuest("Ghoul") end})
+QTab:Button({Title = "Giovanni", Callback = function() teleportToQuest("Giovanni") end})
+QTab:Button({Title = "Reindeer", Callback = function() teleportToQuest("Reindeer") end})
+QTab:Button({Title = "Santa", Callback = function() teleportToQuest("Santa") end})
+QTab:Button({Title = "Sword Master", Callback = function() teleportToQuest("Sword Master") end})
+
 -- ================= AUTO FARM LOOP =================
 task.spawn(function()
     while task.wait() do
         if autoFarm and selectedStat then
             local statId = STAT_ID[selectedStat]
 
-            -- 🔥 กรณี Sword (ไม่มี Spot)
+            -- Sword ไม่มี Spot
             if selectedStat == "Sword" then
                 TrainRemote:FireServer("Train", statId)
-
-            -- 🔥 Stat อื่น ๆ ต้องมี Spot
             else
                 local spot = selectedSpots[selectedStat]
-                if spot and statId then
+                if spot then
                     teleportTo(spot)
                     TrainRemote:FireServer("Train", statId)
                 end
@@ -186,6 +214,6 @@ end)
 -- ================= NOTIFY =================
 Window:Notify({
     Title = "Loaded",
-    Desc = "Auto Farm + Stat-based Warp Ready!",
+    Desc = "Smart Warp + Auto Farm พร้อมใช้งาน",
     Time = 4
 })
