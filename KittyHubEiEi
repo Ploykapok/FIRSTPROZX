@@ -1,10 +1,10 @@
 repeat task.wait() until game:IsLoaded()
 
-local Arsenal = (game.PlaceId == 286090429)
+local AFS ENDLESS = (game.PlaceId == 130247632398296)
 local Volleyball = (game.PlaceId == 73956553001240)
 
-if Arsenal then
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Ploykapok/FIRSTPROZX/refs/heads/main/aimbot", true))()
+if AFS ENDLESS then
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/Ploykapok/FIRSTPROZX/refs/heads/main/afs%20endless',true))()
 elseif Volleyball then
     loadstring(game:HttpGet('https://raw.githubusercontent.com/Ploykapok/FIRSTPROZX/refs/heads/main/volleyball%20legends', true))()
 else
