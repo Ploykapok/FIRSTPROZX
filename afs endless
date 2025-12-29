@@ -1,271 +1,191 @@
 -- ================= SERVICES =================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local player = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local TrainRemote = Remotes:WaitForChild("RemoteEvent")
 
--- ================= SETTINGS & STATE =================
-local Y_OFFSET = 0
-local K, M, B, T, QD = 1e3, 1e6, 1e9, 1e12, 1e15
+-- ================= STATE =================
+local selectedStat = "Strength"
+local autoFarm = false
 
--- เพิ่มสถานะให้ครบทุกอัน
-local enabled = { 
-    Chakra = false, 
-    Strength = false, 
-    Durability = false, 
-    Agility = false, 
-    Speed = false, 
-    Sword = false 
+-- เก็บ Spot แยกตาม Stat
+local selectedSpots = {
+    Strength = nil,
+    Durability = nil,
+    Chakra = nil,
+    Sword = nil,
+    Agility = nil,
+    Speed = nil
 }
 
-local STAT_ID = { 
-    Strength = 1, 
-    Durability = 2, 
-    Chakra = 3, 
-    Sword = 4, 
-    Agility = 5, 
-    Speed = 6 
+local STAT_ID = {
+    Strength = 1,
+    Durability = 2,
+    Chakra = 3,
+    Sword = 4,
+    Agility = 5,
+    Speed = 6
 }
 
--- ================= DATA SPOTS =================
-local SPOTS = {
-
-    Strength = {
-        -- ===== เดิม =====
-        {req=100, path="Workspace.Map.TrainingAreas.Training Dummy"},
-        {req=100*K, path="Workspace.Map.TrainingAreas.Fridge.Part"},
-        {req=1*M, path="Workspace.Map.TrainingAreas.Meteor"},
-        {req=100*M, path="Workspace.Map.TrainingAreas.Arena.Part"},
-        {req=1*B, path="Workspace.Map.TrainingAreas.ExcaliburRocks.Model"},
-        {req=50*T, path="Workspace.Map.TrainingAreas.FloatingIsland"},
-
-        -- ===== เพิ่ม =====
-        {req=10*K, path="Workspace.Map.TrainingAreas.Gym"},
-        {req=10*M, path="Workspace.Map.TrainingAreas.Lookout"},
-        {req=1*B, path="Workspace.Map.TrainingAreas.Excalibur"},
-        {req=25*QD, path="Workspace.Map.TrainingAreas.Pig"},
-        {req=150*QD, path="Workspace.Map.TrainingAreas.Boulder"},
-        {req=5*T, path="Workspace.Map.TrainingAreas.FloatingIsland"},
-        {req=10^22, path="Workspace.Map.TrainingAreas.HeavenlyPillar"}, -- 10sx
-    },
-
-    Durability = {
-        -- ===== เดิม =====
-        {req=100, path="Workspace.Map.TrainingAreas.Pirate ship.Model"},
-        {req=1*M, path="Workspace.Map.TrainingAreas.Paw"},
-        {req=100*M, path="Workspace.Map.TrainingAreas.BlackFire.Fire"},
-
-        -- ===== เพิ่ม =====
-        {req=10*K, path="Workspace.Map.TrainingAreas.Corp"},
-        {req=5*T, path="Workspace.Map.TrainingAreas.Blackhole"},
-        {req=250*T, path="Workspace.Map.TrainingAreas.Founder:GetChildren()[3].Model.Head"},
-        {req=1*B, path="Workspace.Map.TrainingAreas.King Kais"},
-        {req=100*B, path="Workspace.Map.TrainingAreas.Time Chamber"},
-        {req=25*QD, path="Workspace.Map.TrainingAreas.Marine"},
-        {req=10^22, path="Workspace.Map.TrainingAreas.IslandOfPower:GetChildren()[7]"},
-    },
-
-    Chakra = {
-        -- ===== เดิม =====
-        {req=100, path="Workspace.Map.TrainingAreas.Tree1.ObjectRoot"},
-        {req=100*K, path="Workspace.Map.TrainingAreas.Waterfall.Pillar"},
-        {req=10*M, path="Workspace.Map.TrainingAreas.Fox.Fox"},
-        {req=100*M, path="Workspace.Map.TrainingAreas.PinkSwords.Handle"},
-        {req=50*T, path="Workspace.Map.TrainingAreas.RamenShop.polySurface481"},
-        {req=25*QD, path="Workspace.Map.TrainingAreas.Ultimate Dragon.Meshes/shenron4"},
-
-        -- ===== เพิ่ม =====
-        {req=10*K, path="Workspace.Map.TrainingAreas.Library.Book"},
-        {req=1*M, path="Workspace.Map.TrainingAreas.ToriiGate"},
-        {req=10*M, path="Workspace.Map.TrainingAreas.Fox.Kurama"},
-        {req=100*B, path="Workspace.Map.TrainingAreas.Ice"},
-        {req=1*B, path="workspace.Map.TrainingAreas.Sage"},
-        {req=5*T, path="Workspace.Map.TrainingAreas.RamenShop"},
-        {req=25*QD, path="Workspace.Map.TrainingAreas.DoorBox"},
-        {req=150*QD, path="Workspace.Map.TrainingAreas.Eyeball"},
-        {req=250*T, path="Workspace.Map.TrainingAreas.Ultimate Dragon"},
-        {req=10^22, path="Workspace.Map.TrainingAreas.IceTree"}, -- 10sx
-    },
-
-    Agility = {
-        -- ===== เดิม =====
-        {req=100, path="Workspace.Map.TrainingAreas.Trampoline.Bouncy"},
-        {req=10*K, path="Workspace.Map.TrainingAreas.Gravity.Part"},
-
-        -- ===== เพิ่ม =====
-        {req=5*M, path="Workspace.Map.TrainingAreas.Church:GetChildren()[172]"},
-        {req=100*K, path="Workspace.Map.TrainingAreas.KunaiGrounds"},
-    },
-
-    Speed = {
-        -- ===== เดิม =====
-        {req=100, path="Workspace.Map.TrainingAreas.Treadmills"},
-        {req=10*K, path="Workspace.Map.TrainingAreas.Gravity.Part"},
-
-        -- ===== เพิ่ม =====
-        {req=5*M, path="Workspace.Map.TrainingAreas.Church:GetChildren()[172]"},
-        {req=100*K, path="Workspace.Map.TrainingAreas.KunaiGrounds"},
-    },
-
-    Sword = {} -- ดาบไม่มีสปอต (ถูกต้องแล้ว)
-}
-
--- ================= HELPERS =================
-local function getHRP() return player.Character and player.Character:FindFirstChild("HumanoidRootPart") end
-local function getStatValue(stat)
-    local stats = player:FindFirstChild("Stats")
-    if not stats then return 0 end
-    local v = stats:FindFirstChild(tostring(STAT_ID[stat]))
-    return v and v.Value or 0
+-- ================= TELEPORT SYSTEM =================
+local function getHRP()
+    local char = player.Character or player.CharacterAdded:Wait()
+    return char:WaitForChild("HumanoidRootPart")
 end
-local function resolvePath(path)
-    path = path:gsub("^Workspace%.","")
-    local cur = workspace
-    for token in path:gmatch("[^%.]+") do
-        cur = cur:FindFirstChild(token)
-        if not cur then return nil end
+
+local function getPart(inst)
+    if inst:IsA("BasePart") then
+        return inst
+    elseif inst:IsA("Model") then
+        if inst.PrimaryPart then
+            return inst.PrimaryPart
+        end
+        for _,v in ipairs(inst:GetDescendants()) do
+            if v:IsA("BasePart") then
+                return v
+            end
+        end
     end
-    return cur
 end
-local function findPart(inst)
-    if not inst then return end
-    if inst:IsA("BasePart") then return inst end
-    if inst:IsA("Model") and inst.PrimaryPart then return inst.PrimaryPart end
-    for _,d in ipairs(inst:GetDescendants()) do if d:IsA("BasePart") then return d end end
-end
-local function teleportToPath(path)
+
+local function teleportTo(spotName)
     local hrp = getHRP()
-    local inst = resolvePath(path)
-    if hrp and inst then
-        local p = findPart(inst)
-        if p then hrp.CFrame = p.CFrame + Vector3.new(0, Y_OFFSET, 0) end
+    local target = workspace.Map.TrainingAreas:FindFirstChild(spotName)
+    if not target then return end
+
+    local part = getPart(target)
+    if part then
+        hrp.CFrame = part.CFrame + Vector3.new(0,6,0)
     end
 end
 
--- ================= LOAD UI LIBRARY =================
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+-- ================= LOAD UI =================
+local Library = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"
+))()
 
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "AnimeGPT - Complete Farm",
+    Desc = "Auto Farm + Smart Warp",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
         Keybind = Enum.KeyCode.LeftControl,
-        Size = UDim2.new(0, 500, 0, 400)
+        Size = UDim2.new(0, 480, 0, 380)
     },
     CloseUIButton = { Enabled = true, Text = "Close" }
 })
 
--- Tab
-local Tab = Window:Tab({Title = "Auto Train", Icon = "star"}) do
-    Tab:Section({Title = "All Stats Training"})
+-- ================= TAB =================
+local Tab = Window:Tab({Title = "Auto Farm", Icon = "star"})
+Tab:Section({Title = "Auto Farm "})
 
-    -- Auto Strength
-    Tab:Toggle({
-        Title = "Auto Strength",
-        Desc = "Train Strength & Auto TP",
-        Value = false,
-        Callback = function(v) enabled.Strength = v end
-    })
+-- เลือก Stat
+Tab:Dropdown({
+    Title = "Select Stat",
+    List = {"Strength","Durability","Chakra","Sword","Agility","Speed"},
+    Value = "Strength",
+    Callback = function(v)
+        selectedStat = v
+    end
+})
 
-    -- Auto Durability
-    Tab:Toggle({
-        Title = "Auto Durability",
-        Desc = "Train Durability & Auto TP",
-        Value = false,
-        Callback = function(v) enabled.Durability = v end
-    })
+-- เปิด / ปิด Auto Farm
+Tab:Toggle({
+    Title = "Auto Farm",
+    Value = false,
+    Callback = function(v)
+        autoFarm = v
+    end
+})
 
-    -- Auto Chakra
-    Tab:Toggle({
-        Title = "Auto Chakra",
-        Desc = "Train Chakra & Auto TP",
-        Value = false,
-        Callback = function(v) enabled.Chakra = v end
-    })
+Tab:Section({Title = "Select Spot"})
 
-    -- Auto Agility
-    Tab:Toggle({
-        Title = "Auto Agility",
-        Desc = "Train Agility & Auto TP",
-        Value = false,
-        Callback = function(v) enabled.Agility = v end
-    })
+-- Strength
+Tab:Dropdown({
+    Title = "Strength Spots",
+    List = {
+        "Training Dummy","Fridge","Gym","Meteor",
+        "Lookout","Arena","Excalibur",
+        "FloatingIsland","Pig","Boulder","HeavenlyPillar"
+    },
+    Callback = function(v)
+        selectedSpots.Strength = v
+    end
+})
 
-    -- Auto Speed (เพิ่มกลับมาแล้ว)
-    Tab:Toggle({
-        Title = "Auto Speed",
-        Desc = "Train Speed & Auto TP",
-        Value = false,
-        Callback = function(v) enabled.Speed = v end
-    })
+-- Durability
+Tab:Dropdown({
+    Title = "Durability Spots",
+    List = {
+        "Pirate ship","Corp","Paw","BlackFire",
+        "Blackhole","Founder","King Kais",
+        "Time Chamber","Marine","IslandOfPower"
+    },
+    Callback = function(v)
+        selectedSpots.Durability = v
+    end
+})
 
-    -- Auto Sword (เพิ่มกลับมาแล้ว)
-    Tab:Toggle({
-        Title = "Auto Sword",
-        Desc = "Auto swing sword",
-        Value = false,
-        Callback = function(v) enabled.Sword = v end
-    })
-end
+-- Chakra
+Tab:Dropdown({
+    Title = "Chakra Spots",
+    List = {
+        "Tree1","Waterfall","Library","ToriiGate",
+        "Fox","PinkSwords","Sage","Ice",
+        "RamenShop","Ultimate Dragon",
+        "DoorBox","Eyeball","IceTree"
+    },
+    Callback = function(v)
+        selectedSpots.Chakra = v
+    end
+})
 
--- Extra Tab
-local Extra = Window:Tab({Title = "Misc", Icon = "tag"}) do
-    Extra:Section({Title = "Utility"})
-    
-    Extra:Button({
-        Title = "Unlock All Map",
-        Desc = "Teleport to all islands once",
-        Callback = function()
-            local MAP_SPOTS = {
-                "Workspace.Map.BeachIsland.Crater", "Workspace.Map.CityIsland.CityIsland",
-                "Workspace.Map.CityIsland.Oversee", "Workspace.Map.CityIsland.Waterfall",
-                "Workspace.Map.DimensionIsland.Dirt", "Workspace.Map.MainIsland.StarterLand",
-                "Workspace.Map.SideIsland.Land", "Workspace.Map.SnowIsland.Ice"
-            }
-            local hrp = getHRP()
-            if hrp then
-                local oldPos = hrp.CFrame
-                for _, p in ipairs(MAP_SPOTS) do
-                    teleportToPath(p)
-                    task.wait()
-                end
-                hrp.CFrame = oldPos
-                Window:Notify({Title = "Success", Desc = "Map Unlocked!", Time = 3})
-            end
-        end
-    })
-end
+-- Agility
+Tab:Dropdown({
+    Title = "Agility Spots",
+    List = {"Trampoline","Gravity","KunaiGrounds","Church"},
+    Callback = function(v)
+        selectedSpots.Agility = v
+    end
+})
 
--- ================= MAIN LOOP =================
+-- Speed
+Tab:Dropdown({
+    Title = "Speed Spots",
+    List = {"Treadmills","Gravity","KunaiGrounds","Church"},
+    Callback = function(v)
+        selectedSpots.Speed = v
+    end
+})
+
+-- ================= AUTO FARM LOOP =================
 task.spawn(function()
-    while true do
-        for stat, on in pairs(enabled) do
-            if on then
-                -- Check for TP
-                local val = getStatValue(stat)
-                local best = nil
-                local maxReq = -1
-                for _, s in ipairs(SPOTS[stat] or {}) do
-                    if val >= s.req and s.req > maxReq then
-                        maxReq = s.req
-                        best = s
-                    end
+    while task.wait() do
+        if autoFarm and selectedStat then
+            local statId = STAT_ID[selectedStat]
+
+            -- 🔥 กรณี Sword (ไม่มี Spot)
+            if selectedStat == "Sword" then
+                TrainRemote:FireServer("Train", statId)
+
+            -- 🔥 Stat อื่น ๆ ต้องมี Spot
+            else
+                local spot = selectedSpots[selectedStat]
+                if spot and statId then
+                    teleportTo(spot)
+                    TrainRemote:FireServer("Train", statId)
                 end
-                if best then teleportToPath(best.path) end
-                
-                -- Remote Call
-                TrainRemote:FireServer("Train", STAT_ID[stat])
             end
         end
-        task.wait()
     end
 end)
 
+-- ================= NOTIFY =================
 Window:Notify({
-    Title = "ANIMEGPT Loaded",
-    Desc = "All stats ready! Press Left Control to Toggle UI",
+    Title = "Loaded",
+    Desc = "Auto Farm + Stat-based Warp Ready!",
     Time = 4
 })
