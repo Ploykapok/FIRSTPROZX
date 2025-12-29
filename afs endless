@@ -67,8 +67,8 @@ local Library = loadstring(game:HttpGet(
 ))()
 
 local Window = Library:Window({
-    Title = "x2zu [ Stellar ]",
-    Desc = "Auto Farm + Smart Warp",
+    Title = "Kitty Hub [AFS ENDLESS]",
+    Desc = "Auto Farm โง่",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
