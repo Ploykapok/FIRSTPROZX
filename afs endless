@@ -57,7 +57,7 @@ local function teleportTo(spotName)
 
     local part = getPart(target)
     if part then
-        hrp.CFrame = part.CFrame + Vector3.new(0,6,0)
+        hrp.CFrame = part.CFrame + Vector3.new(0,0,0)
     end
 end
 
