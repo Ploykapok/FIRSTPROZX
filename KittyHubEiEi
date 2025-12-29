@@ -23,5 +23,5 @@ elseif MAP_67 then
     ))()
 
 else
-    game.Players.LocalPlayer:Kick("Game Not Supported ❌")
+    game.Players.LocalPlayer:Kick("Game Not Supported ❌ โง่จริงๆ")
 end
