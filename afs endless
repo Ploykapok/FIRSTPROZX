@@ -537,5 +537,31 @@ task.spawn(function()
     end
 end)
 
+-- ================= CUSTOM OFFSET FOR SAGE =================
+local SAGE_OFFSET = Vector3.new(13,26,-5) -- สูงขึ้น 10 สตัด
+
+-- โค้ดปรับการวาป Training Spot สำหรับ Sage
+local oldTeleportToTraining = teleportToTraining
+function teleportToTraining(spotName)
+    if spotName == "Sage" then
+        local target = workspace.Map.TrainingAreas:FindFirstChild(spotName)
+        if target then
+            getHRP().CFrame = target:GetPivot() + SAGE_OFFSET
+        end
+    else
+        oldTeleportToTraining(spotName)
+    end
+end
+
+-- โค้ดปรับการวาป Mob สำหรับ Sage (ถ้ามี)
+local oldTeleportToMob = teleportToMob
+function teleportToMob(mob, offset)
+    if mob and mob.Name == "Sage" then
+        getHRP().CFrame = mob:GetPivot() + SAGE_OFFSET
+    else
+        oldTeleportToMob(mob, offset)
+    end
+end
+
 -- ================= NOTIFY =================
 Window:Notify({Title="Loaded", Desc="Kitty Hub | AFS ENLESS พร้อมใช้งาน✅ โง่!", Time=4})
