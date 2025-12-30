@@ -411,9 +411,9 @@ TeleportTab:Button({
     end
 })
 
--- Random Class
+-- Class
 TeleportTab:Button({
-    Title="Random Class",
+    Title="Class Shop",
     Callback=function()
         local target = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Shops"):WaitForChild("FrameOpen"):WaitForChild("Classes")
         if target then teleportTo(target) end
@@ -538,4 +538,4 @@ task.spawn(function()
 end)
 
 -- ================= NOTIFY =================
-Window:Notify({Title="Loaded", Desc="Kitty Hub | AFS ENLESS พร้อมใช้งาน✅", Time=4})
+Window:Notify({Title="Loaded", Desc="Kitty Hub | AFS ENLESS พร้อมใช้งาน✅ โง่!", Time=4})
