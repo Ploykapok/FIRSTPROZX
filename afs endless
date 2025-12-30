@@ -229,8 +229,8 @@ local mobList = {
     ["(Boss) Riru [SS]"] = 1001
 }
 
-local autoFarmMob = false
-local selectedMob = "Sarka [E]"
+local selectedMob = Config.SelectedMob or "Sarka [E]"
+local autoFarmMob = Config.AutoFarmMob or false
 local farmMode = "Selected" -- Selected / Around / All
 local currentTarget = nil
 
@@ -239,9 +239,11 @@ Tab:Section({Title="Auto Farm Mob"})
 Tab:Dropdown({
     Title = "Select Mob",
     List = {"Sarka [E]","Gen [D]","Igicho [C]","Remgonuk [B]","Booh [A]","Saytamu [S]","(Boss) Riru [SS]"},
-    Value = selectedMob,
+    Value = selectedMob, -- โหลดค่าเดิมจาก Config
     Callback = function(v)
         selectedMob = v
+        Config.SelectedMob = v -- บันทึกค่าลง Config
+        SaveConfig()
         currentTarget = nil -- รีเซ็ตเป้าหมายเดิม
     end
 })
