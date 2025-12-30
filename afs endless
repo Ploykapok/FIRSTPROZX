@@ -74,15 +74,6 @@ local function getHRP()
     return char:WaitForChild("HumanoidRootPart")
 end
 
-local VirtualUser = game:GetService("VirtualUser")
-player.Idled:Connect(function()
-    if antiAFK then
-        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-        task.wait(0.1)
-        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    end
-end)
-
 -- ================= TELEPORT =================
 local function teleportTo(target)
     if target and target:IsA("Model") then
@@ -337,7 +328,7 @@ end)
 -- ================= TRAIN ONLY TAB =================
 local TTab = Window:Tab({Title="Train Only", Icon="zap"})
 TTab:Section({Title="Train only"})
-for _, stat in ipairs({"Strength (Can Attack)","Durability","Chakra","Sword (Can Attack)","Agility","Speed"}) do
+for _, stat in ipairs({"Strength","Durability","Chakra","Sword","Agility","Speed"}) do
     TTab:Toggle({
         Title=stat,
         Value=trainOnlyStats[stat],
