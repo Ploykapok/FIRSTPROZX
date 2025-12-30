@@ -324,7 +324,7 @@ task.spawn(function()
                         if isMobAlive(mob) then
                             currentTarget = mob
                             teleportToMob(mob)
-                            task.wait(0.1) -- เวลาระหว่างวาป
+                            task.wait(0.5) -- เวลาระหว่างวาป
                             break
                         end
                     end
@@ -349,11 +349,137 @@ for _, stat in ipairs({"Strength (Can Attack)","Durability","Chakra","Sword (Can
     })
 end
 
--- ================= QUEST TAB =================
-local QTab = Window:Tab({Title="Teleport", Icon="map"})
-QTab:Section({Title="Quest"})
+-- ================= TELEPORT TAB =================
+local TeleportTab = Window:Tab({Title="Teleport", Icon="map"})
+
+-- Section Quest
+TeleportTab:Section({Title="Quest"})
 for _, quest in ipairs({"Boom","Ghoul","Giovanni","Reindeer","Santa","Sword Master"}) do
-    QTab:Button({Title=quest, Callback=function() teleportToQuest(quest) end})
+    TeleportTab:Button({
+        Title=quest,
+        Callback=function()
+            teleportToQuest(quest)
+        end
+    })
+end
+
+-- Section Shop
+TeleportTab:Section({Title="Shop"})
+
+-- Champions Normal
+TeleportTab:Button({
+    Title="Champions Normal",
+    Callback=function()
+        local shop = workspace:WaitForChild("Scriptable")
+            :WaitForChild("NPC")
+            :WaitForChild("Shops")
+            :WaitForChild("Champions")
+            :WaitForChild("1")
+
+        if shop then
+            local hrp = getHRP()
+            -- ตรวจสอบว่า Model มี PrimaryPart
+            if shop.PrimaryPart then
+                hrp.CFrame = shop.PrimaryPart.CFrame + Vector3.new(0,6,0)
+            else
+                -- ถ้าไม่มี PrimaryPart ใช้ Pivot
+                hrp.CFrame = shop:GetPivot() + Vector3.new(0,6,0)
+            end
+        end
+    end
+})
+
+TeleportTab:Button({
+    Title="Champions Lucky",
+    Callback=function()
+        local shop = workspace:WaitForChild("Scriptable")
+            :WaitForChild("NPC")
+            :WaitForChild("Shops")
+            :WaitForChild("Champions")
+            :WaitForChild("2")
+
+        if shop then
+            local hrp = getHRP()
+            -- ตรวจสอบว่า Model มี PrimaryPart
+            if shop.PrimaryPart then
+                hrp.CFrame = shop.PrimaryPart.CFrame + Vector3.new(0,6,0)
+            else
+                -- ถ้าไม่มี PrimaryPart ใช้ Pivot
+                hrp.CFrame = shop:GetPivot() + Vector3.new(0,6,0)
+            end
+        end
+    end
+})
+
+-- Random Class
+TeleportTab:Button({
+    Title="Random Class",
+    Callback=function()
+        local target = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Shops"):WaitForChild("FrameOpen"):WaitForChild("Classes")
+        if target then teleportTo(target) end
+    end
+})
+
+-- Special Shops
+TeleportTab:Button({
+    Title="Grimoires",
+    Callback=function()
+        local target = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Shops"):WaitForChild("Special"):WaitForChild("Grimoires"):WaitForChild("1")
+        if target then teleportTo(target) end
+    end
+})
+
+TeleportTab:Button({
+    Title="Kagunes",
+    Callback=function()
+        local target = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Shops"):WaitForChild("Special"):WaitForChild("Kagunes"):WaitForChild("1")
+        if target then teleportTo(target) end
+    end
+})
+
+TeleportTab:Button({
+    Title="Quirks",
+    Callback=function()
+        local target = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Shops"):WaitForChild("Special"):WaitForChild("Quirks"):WaitForChild("1")
+        if target then teleportTo(target) end
+    end
+})
+
+TeleportTab:Button({
+    Title="Stands",
+    Callback=function()
+        local target = workspace:WaitForChild("Scriptable"):WaitForChild("NPC"):WaitForChild("Shops"):WaitForChild("Special"):WaitForChild("Stands"):WaitForChild("1")
+        if target then teleportTo(target) end
+    end
+})
+TeleportTab:Section({Title="Gacha"})
+local gachaList = {
+    ["Jutsu Levelling"] = "G1",
+    ["Nen Levelling"] = "G2",
+    ["Soul Levelling"] = "G3",
+    ["Nichiyin Levelling"] = "G4",
+    ["Seiyen Levelling"] = "G5",
+    ["Hero Levelling"] = "G6"
+}
+
+for name, gachaId in pairs(gachaList) do
+    TeleportTab:Button({
+        Title = name,
+        Callback = function()
+            local npc = workspace:WaitForChild("Scriptable")
+                :WaitForChild("NPC")
+                :WaitForChild("Gacha")
+                :WaitForChild(gachaId)
+            if npc then
+                local hrp = getHRP()
+                if npc.PrimaryPart then
+                    hrp.CFrame = npc.PrimaryPart.CFrame + Vector3.new(0,10,0)
+                else
+                    hrp.CFrame = npc:GetPivot() + Vector3.new(0,10,0)
+                end
+            end
+        end
+    })
 end
 
 -- ================= SETTING TAB =================
