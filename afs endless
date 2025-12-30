@@ -310,7 +310,10 @@ task.spawn(function()
                             end
                         end
                     end
-                    if nearest then currentTarget = nearest teleportToMob(nearest) end
+                    if nearest then
+    currentTarget = nearest
+    teleportToMob(nearest)
+end
 
                 elseif farmMode == "All" then
                     for _, mob in pairs(workspace.Scriptable.Mobs:GetChildren()) do
