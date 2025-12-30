@@ -74,6 +74,19 @@ local function getHRP()
     return char:WaitForChild("HumanoidRootPart")
 end
 
+-- ================= MOB UTILS =================
+local function isMobAlive(mob)
+    if not mob then return false end
+    local hum = mob:FindFirstChildWhichIsA("Humanoid")
+    return hum and hum.Health > 0
+end
+
+local function teleportToMob(mob)
+    if mob then
+        getHRP().CFrame = mob:GetPivot()
+    end
+end
+
 -- ================= TELEPORT =================
 local function teleportTo(target)
     if target and target:IsA("Model") then
@@ -278,52 +291,78 @@ local function isMobAlive(mob)
 end
 
 local function teleportToMob(mob)
-    if mob then
-        local hrp = getHRP()
-        hrp.CFrame = mob:GetPivot() + Vector3.new(0,0,0) -- วาปตรงๆ
+    local hrp = getHRP()
+    if mob.PrimaryPart then
+        hrp.CFrame = mob.PrimaryPart.CFrame + Vector3.new(0,0,0)
+    else
+        hrp.CFrame = mob:GetPivot() + Vector3.new(0,0,0)
     end
 end
 
+-- ================= AUTO FARM MOB LOOP (FIXED) =================
 task.spawn(function()
     while task.wait() do
-        if autoFarmMob then
-            -- ตรวจสอบเป้าหมายเดิมยังไม่ตาย
-            if currentTarget and isMobAlive(currentTarget) then
-                teleportToMob(currentTarget)
-            else
-                currentTarget = nil
-                local hrp = getHRP()
-                if farmMode == "Selected" then
-                    local mobId = mobList[selectedMob]
-                    local mob = workspace.Scriptable.Mobs:FindFirstChild(tostring(mobId))
-                    if isMobAlive(mob) then currentTarget = mob teleportToMob(mob) end
+        if not autoFarmMob then
+            currentTarget = nil
+            continue
+        end
 
-                elseif farmMode == "Around" then
-                    local nearest
-                    local minDist = math.huge
-                    for _, mob in pairs(workspace.Scriptable.Mobs:GetChildren()) do
-                        if isMobAlive(mob) then
-                            local dist = (mob:GetPivot().Position - hrp.Position).Magnitude
-                            if dist < minDist then
-                                minDist = dist
-                                nearest = mob
-                            end
-                        end
-                    end
-                    if nearest then
-    currentTarget = nearest
-    teleportToMob(nearest)
-end
+        local hrp = getHRP()
 
-                elseif farmMode == "All" then
-                    for _, mob in pairs(workspace.Scriptable.Mobs:GetChildren()) do
-                        if isMobAlive(mob) then
-                            currentTarget = mob
-                            teleportToMob(mob)
-                            task.wait(0.5) -- เวลาระหว่างวาป
-                            break
-                        end
+        -- ถ้าเป้าหมายเดิมยังไม่ตาย ให้วาปซ้ำ
+        if currentTarget and isMobAlive(currentTarget) then
+            teleportToMob(currentTarget)
+            continue
+        end
+
+        currentTarget = nil
+
+        -- ========= MODE: SELECTED =========
+        if farmMode == "Selected" and selectedMob then
+            local mobId = tostring(MOB_ID[selectedMob])
+            local nearest, minDist = nil, math.huge
+
+            for _, mob in pairs(workspace.Scriptable.Mobs:GetChildren()) do
+                if mob.Name == mobId and isMobAlive(mob) then
+                    local dist = (mob:GetPivot().Position - hrp.Position).Magnitude
+                    if dist < minDist then
+                        minDist = dist
+                        nearest = mob
                     end
+                end
+            end
+
+            if nearest then
+                currentTarget = nearest
+                teleportToMob(nearest)
+            end
+
+        -- ========= MODE: AROUND =========
+        elseif farmMode == "Around" then
+            local nearest, minDist = nil, math.huge
+
+            for _, mob in pairs(workspace.Scriptable.Mobs:GetChildren()) do
+                if isMobAlive(mob) then
+                    local dist = (mob:GetPivot().Position - hrp.Position).Magnitude
+                    if dist < minDist then
+                        minDist = dist
+                        nearest = mob
+                    end
+                end
+            end
+
+            if nearest then
+                currentTarget = nearest
+                teleportToMob(nearest)
+            end
+
+        -- ========= MODE: ALL =========
+        elseif farmMode == "All" then
+            for _, mob in pairs(workspace.Scriptable.Mobs:GetChildren()) do
+                if isMobAlive(mob) then
+                    currentTarget = mob
+                    teleportToMob(mob)
+                    break
                 end
             end
         end
@@ -534,28 +573,17 @@ task.spawn(function()
 end)
 
 -- ================= CUSTOM OFFSET FOR SAGE =================
-local SAGE_OFFSET = Vector3.new(13,26,-5) -- สูงขึ้น 10 สตัด
+local SAGE_OFFSET = Vector3.new(13,26,-5)
 
--- โค้ดปรับการวาป Training Spot สำหรับ Sage
 local oldTeleportToTraining = teleportToTraining
 function teleportToTraining(spotName)
+    local target = workspace.Map.TrainingAreas:FindFirstChild(spotName)
+    if not target then return end
+
     if spotName == "Sage" then
-        local target = workspace.Map.TrainingAreas:FindFirstChild(spotName)
-        if target then
-            getHRP().CFrame = target:GetPivot() + SAGE_OFFSET
-        end
+        getHRP().CFrame = target:GetPivot() + SAGE_OFFSET
     else
         oldTeleportToTraining(spotName)
-    end
-end
-
--- โค้ดปรับการวาป Mob สำหรับ Sage (ถ้ามี)
-local oldTeleportToMob = teleportToMob
-function teleportToMob(mob, offset)
-    if mob and mob.Name == "Sage" then
-        getHRP().CFrame = mob:GetPivot() + SAGE_OFFSET
-    else
-        oldTeleportToMob(mob, offset)
     end
 end
 
