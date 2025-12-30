@@ -140,6 +140,48 @@ local Window = Library:Window({
     CloseUIButton={Enabled=true, Text="Close"}
 })
 
+-- ================= STATUS INFO TAB =================
+local STab = Window:Tab({Title="Status Info", Icon="info"})
+STab:Section({Title="Player Stats"})
+
+local statLabels = {}
+
+-- Mapping Stat IDs กับชื่อ
+local STAT_NAMES = {
+    ["1"] = "Strength",
+    ["2"] = "Durability",
+    ["3"] = "Chakra",
+    ["4"] = "Sword",
+    ["5"] = "Agility",
+    ["6"] = "Speed"
+}
+
+for i = 1,6 do
+    local statName = STAT_NAMES[tostring(i)]
+    statLabels[i] = STab:Label({
+        Title = statName .. ": 0",
+        Color = Color3.fromRGB(255,255,255)
+    })
+end
+
+-- อัปเดตค่า Stat แบบเรียลไทม์ (ปัดเป็นจำนวนเต็ม)
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if player:FindFirstChild("Stats") then
+            for i = 1,6 do
+                local stat = player.Stats:FindFirstChild(tostring(i))
+                if stat then
+                    local name = STAT_NAMES[tostring(i)]
+                    statLabels[i]:SetTitle(name .. ": " .. tostring(math.floor(stat.Value)))
+                end
+            end
+        end
+    end
+end)
+
 -- ================= AUTO FARM TAB =================
 local Tab = Window:Tab({Title="Auto Farm", Icon="star"})
 Tab:Section({Title="Auto Farm Stat"})
@@ -185,26 +227,112 @@ Tab:Toggle({Title="Auto get Chikara Crate", Value=autoChikaraBox, Callback=funct
     SaveConfig()
 end})
 
+-- ================= AUTO FARM MOB =================
+local mobList = {
+    ["Sarka [E]"] = 1,
+    ["Gen [D]"] = 2,
+    ["Igicho [C]"] = 3,
+    ["Remgonuk [B]"] = 4,
+    ["Booh [A]"] = 5,
+    ["Saytamu [S]"] = 6,
+    ["(Boss) Riru [SS]"] = 1001
+}
+
+local autoFarmMob = false
+local selectedMob = "Sarka [E]"
+local farmMode = "Selected" -- Selected / Around / All
+local currentTarget = nil
+
+-- เพิ่มใน Tab Auto Farm เดิม
 Tab:Section({Title="Auto Farm Mob"})
 Tab:Dropdown({
-    Title="Select Mob",
-    List={"Sarka [E]","Gen [D]","Igicho [C]","Remgonuk [B]","Booh [A]","Saytamu [S]","(Boss) Riru [SS]"},
-    Value=selectedMob,
-    Callback=function(v)
-        selectedMob=v
-        Config.SelectedMob=v
-        SaveConfig()
+    Title = "Select Mob",
+    List = {"Sarka [E]","Gen [D]","Igicho [C]","Remgonuk [B]","Booh [A]","Saytamu [S]","(Boss) Riru [SS]"},
+    Value = selectedMob,
+    Callback = function(v)
+        selectedMob = v
+        currentTarget = nil -- รีเซ็ตเป้าหมายเดิม
     end
 })
+
+Tab:Dropdown({
+    Title = "Farm Mode",
+    List = {"Selected","Around","All"},
+    Value = farmMode,
+    Callback = function(v)
+        farmMode = v
+        currentTarget = nil
+    end
+})
+
 Tab:Toggle({
-    Title="Auto Farm Mob",
-    Value=autoFarmMob,
-    Callback=function(v)
-        autoFarmMob=v
-        Config.AutoFarmMob=v
-        SaveConfig()
+    Title = "Auto Farm Mob",
+    Value = autoFarmMob,
+    Callback = function(v)
+        autoFarmMob = v
+        if not v then currentTarget = nil end
     end
 })
+
+-- ================= AUTO FARM MOB LOOP =================
+local function isMobAlive(mob)
+    if not mob then return false end
+    local humanoid = mob:FindFirstChildWhichIsA("Humanoid")
+    if humanoid and humanoid.Health > 0 then
+        return true
+    end
+    return false
+end
+
+local function teleportToMob(mob)
+    if mob then
+        local hrp = getHRP()
+        hrp.CFrame = mob:GetPivot() + Vector3.new(0,0,0) -- วาปตรงๆ
+    end
+end
+
+task.spawn(function()
+    while task.wait() do
+        if autoFarmMob then
+            -- ตรวจสอบเป้าหมายเดิมยังไม่ตาย
+            if currentTarget and isMobAlive(currentTarget) then
+                teleportToMob(currentTarget)
+            else
+                currentTarget = nil
+                local hrp = getHRP()
+                if farmMode == "Selected" then
+                    local mobId = mobList[selectedMob]
+                    local mob = workspace.Scriptable.Mobs:FindFirstChild(tostring(mobId))
+                    if isMobAlive(mob) then currentTarget = mob teleportToMob(mob) end
+
+                elseif farmMode == "Around" then
+                    local nearest
+                    local minDist = math.huge
+                    for _, mob in pairs(workspace.Scriptable.Mobs:GetChildren()) do
+                        if isMobAlive(mob) then
+                            local dist = (mob:GetPivot().Position - hrp.Position).Magnitude
+                            if dist < minDist then
+                                minDist = dist
+                                nearest = mob
+                            end
+                        end
+                    end
+                    if nearest then currentTarget = nearest teleportToMob(nearest) end
+
+                elseif farmMode == "All" then
+                    for _, mob in pairs(workspace.Scriptable.Mobs:GetChildren()) do
+                        if isMobAlive(mob) then
+                            currentTarget = mob
+                            teleportToMob(mob)
+                            task.wait(0.1) -- เวลาระหว่างวาป
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
 
 -- ================= TRAIN ONLY TAB =================
 local TTab = Window:Tab({Title="Train Only", Icon="zap"})
@@ -265,24 +393,6 @@ task.spawn(function()
     while task.wait(0.5) do
         if autoChikaraBox then
             teleportAndClickChikaraBox()
-        end
-    end
-end)
-
--- ================= AUTO MOB LOOP =================
-task.spawn(function()
-    while task.wait() do
-        if autoFarmMob then
-            local mobId = MOB_ID[selectedMob]
-            if mobId then
-                local mob
-                if mobId == 1001 then
-                    mob = workspace.Scriptable.Mobs["1001"]
-                else
-                    mob = workspace.Scriptable.Mobs:FindFirstChild(tostring(mobId))
-                end
-                if mob then teleportTo(mob) end
-            end
         end
     end
 end)
