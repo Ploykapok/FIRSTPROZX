@@ -563,5 +563,14 @@ function teleportToMob(mob, offset)
     end
 end
 
+-- ================= ANTI AFK LIGHT =================
+player.Idled:Connect(function()
+    if antiAFK then
+        local cam = workspace.CurrentCamera.CFrame
+        -- ขยับกล้องแค่เล็กน้อย
+        workspace.CurrentCamera.CFrame = cam * CFrame.Angles(0, math.rad(0.1), 0)
+    end
+end)
+
 -- ================= NOTIFY =================
 Window:Notify({Title="Loaded", Desc="Kitty Hub | AFS ENLESS พร้อมใช้งาน✅ โง่!", Time=4})
