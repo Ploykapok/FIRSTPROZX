@@ -1,3 +1,11 @@
+pcall(function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Kitty Hub | AFS Enless",
+        Text = "Loaded Successfully ✅",
+        Duration = 5
+    })
+end)
+
 -- ================= SAVE CONFIG =================
 local CONFIG_FILE = "KittyHub_Config.json"
 local HttpService = game:GetService("HttpService")
