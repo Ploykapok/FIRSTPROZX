@@ -1,7 +1,7 @@
 -- ================== First Hub | Auto TP Outlaw + Auto Rejoin ==================
 
 -- 🔥 ใส่ลิงก์ RAW ของสคริปต์นี้ตรงนี้
-local SCRIPT_URL = "PUT_YOUR_RAW_URL_HERE"
+local SCRIPT_URL = "https://raw.githubusercontent.com/Ploykapok/FIRSTPROZX/refs/heads/main/police"
 
 -- ให้รันซ้ำหลัง teleport
 if queue_on_teleport then
